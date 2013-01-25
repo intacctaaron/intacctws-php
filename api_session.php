@@ -52,7 +52,7 @@ class api_session {
 
         $responseObj = simplexml_load_string($response);
 
-        $this->sessionId = $responseObj->operation->result->data->sessioninfo->session;
+        $this->sessionId = (string)$responseObj->operation->result->data->sessioninfo->session;
         $this->endPoint = $endPoint;
         $this->companyId = $companyId;
         $this->userId = $userId;
