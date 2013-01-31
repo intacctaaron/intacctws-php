@@ -17,14 +17,14 @@ class api_session {
         <password>{5%}</password>                                                                                                    
         <controlid>foobar</controlid>                                                                                                
         <uniqueid>false</uniqueid>                                                                                                   
-        <dtdversion>2.1</dtdversion>                                                                                                 
+        <dtdversion>3.0</dtdversion>                                                                                                 
     </control>                                                                                                                       
     <operation>                                                                                                                      
         <authentication>";
 
     const XML_FOOTER = "</authentication>                                                                                            
         <content>                                                                                                                    
-                <function controlid=\"foobar\"><init_session/></function>                                                            
+                <function controlid=\"foobar\"><getAPISession></getAPISession></function>                                                            
         </content>                                                                                                                   
     </operation>                                                                                                                     
 </request>";
@@ -37,7 +37,19 @@ class api_session {
 
     const XML_SESSIONID = "<sessionid>{1%}</sessionid>";
 
-    public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword, $endPoint) {
+    const DEFAULT_LOGIN_URL = "https://api.intacct.com/ia/xml/xmlgw.phtml";
+
+    /**
+     * Connect to the Intacct Web Service using a set of user credntials
+     * @param String $companyId company to connect to
+     * @param String $userId user
+     * @param String $password The users's password
+     * @param String $senderId Your Intacct Partner sender id
+     * @param String $senderPassword Your Intacct Partner password
+     * @param String $endPoint the URL to connect with.
+     * @throws Exception this method returns no value, but will raise any connection exceptions
+     */
+    public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword) {
 
         $xml = self::XML_HEADER . self::XML_LOGIN . self::XML_FOOTER;
 
@@ -46,14 +58,16 @@ class api_session {
         $xml = str_replace("{3%}", $password, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
-        $response = api_post::execute($xml, $endPoint);
+        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
         self::validateConnection($response);
 
         $responseObj = simplexml_load_string($response);
 
-        $this->sessionId = (string)$responseObj->operation->result->data->sessioninfo->session;
-        $this->endPoint = $endPoint;
+        $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
+	//        $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+	// There's currently a defect in the getAPISession method where the URL returned is not HTTPS
+	$this->endPoint = self::DEFAULT_LOGIN_URL;
         $this->companyId = $companyId;
         $this->userId = $userId;
         $this->senderId = $senderId;
@@ -61,25 +75,34 @@ class api_session {
 
     }
 
-    public function connectSessionId($sessionId, $senderId, $senderPassword, $endPoint) {
+    /**
+     * Create a session with the Intacct Web Services with an existing session.
+     * You'll normally get the sessionid using a merge field (or injection parameter)
+     * in an HTTP trigger or integration link
+     * @param String $sessionId a valid Intacct session Id
+     * @param String $senderId Your Intacct partner sender id
+     * @param String $senderPassword Your Intacct partner password
+     * @throws Exception This method returns no values, but will raise an exception if there's a connection error
+     */
+    public function connectSessionId($sessionId, $senderId, $senderPassword) {
 
         $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER;
         $xml = str_replace("{1%}", $sessionId, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
 
-	// debug only
-	//	$endPoint = "https://www.intacct.com/ia/xml/xmlgw.phtml";
-        $response = api_post::execute($xml, $endPoint);
+        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
         self::validateConnection($response);
 
         $responseObj = simplexml_load_string($response);
 
-        $this->sessionId = $responseObj->operation->result->data->sessioninfo->session;
-        $this->companyId = $responseObj->operation->authentication->companyid;
-        $this->userId = $responseObj->operation->authentication->userid;
-        $this->endPoint = $endPoint;
+        $this->sessionId = (string)$responseObj->operation->result->data->sessioninfo->session;
+        $this->companyId = (string)$responseObj->operation->authentication->companyid;
+        $this->userId = (string)$responseObj->operation->authentication->userid;
+	//        $this->endPoint = (string)$responseObj->operation->result->data->sessioninfo->endpoint;
+	// there's a defect in the getAPISession method where the URL returned is not HTTPS
+	$this->endPoint = self::DEFAULT_LOGIN_URL;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
 
