@@ -46,7 +46,6 @@ class api_session {
      * @param String $password The users's password
      * @param String $senderId Your Intacct Partner sender id
      * @param String $senderPassword Your Intacct Partner password
-     * @param String $endPoint the URL to connect with.
      * @throws Exception this method returns no value, but will raise any connection exceptions
      */
     public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword) {

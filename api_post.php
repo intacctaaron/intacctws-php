@@ -1,5 +1,8 @@
 <?
 include_once('api_util.php');
+include_once('api_viewFilter.php');
+include_once('api_viewFilters.php');
+
 
 class api_post {
 
@@ -9,7 +12,16 @@ class api_post {
     const DEFAULT_PAGESIZE = 1000;
     const DEFAULT_MAXRETURN = 100000;
 
-    public static function read($object, $id, $fields, $session="") {
+    /**
+     * Read one or more records by their key.  For platform objects, the key is the 'id' field.  
+     * For standard objects, the key is the 'recordno' field.  Results are returned as a php structured array
+     * @param object String the integration name for the object
+     * @param id String a comma seperated list of keys for each record you wish to read
+     * @param fields String a comma seperated list of fields to return
+     * @param session Object instance of api_session object with a valid connection
+     * @return Array of records
+     */
+    public static function read($object, $id, $fields, $session) {
 
         $readXml = "<read><object>$object</object><keys>$id</keys><fields>$fields</fields><returnFormat>csv</returnFormat></read>";
         $objCsv = api_post::post($readXml, $session);
@@ -23,48 +35,58 @@ class api_post {
         }
     }
 
-    public static function createEx($objects, $session="") {
+    /**
+     * Create one or more records.  Object types can be mixed and can be either standard or custom.
+     * Check the developer documentation to see which standard objects are supported in this method
+     * @param records Array an array of records to create.  Follow the pattern 
+     * $records = array(array('myobjecttype' => array('field1' => 'value',
+     *                                                'field2' => 'value')),
+     *                  array('myotherobjecttype' => array('field1' => 'value',
+     *                                                     'field2' => 'value')));
+     * @param session Object instance of api_session object with valid connection
+     * @return Array array of keys to the objects created
+     */
+    public static function create($records, $session) {
 
-      if (count($objects) > 100) throw new Exception("Attempting to create more than 100 objects. (" . count($objects) . ") ");
+      if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
 
-        // Convert the $object into an xml structure                                                                                 
+        // Convert the record into an xml structure                                                                                 
         $createXml = "<create>";
         $node = "";
-        foreach($objects as $object) {
-            $nodeAry = array_keys($object);
+        foreach($records as $record) {
+            $nodeAry = array_keys($record);
             $node = $nodeAry[0];
-            $objXml = api_util::phpToXml($node, $object[$node]);
+            $objXml = api_util::phpToXml($node, $record[$node]);
             $createXml = $createXml . $objXml;
         }
         $createXml = $createXml . "</create>";
         $res = api_post::post($createXml, $session);
-        $objects = api_post::processUpdateResults($res, $node);
+        $records = api_post::processUpdateResults($res, $node);
 
-        return $objects;
+        return $records;
     }
 
-    public static function create($xml, $session="") {
+    /**
+     * Update one or more records.  Object types can be mixed and can be either standard or custom.
+     * Check the developer documentation to see which standard objects are supported in this method
+     * @param records Array an array of records to update.  Follow the pattern
+     * $records = array(array('mycustomobjecttype' => array('id' => 112233, // you must pass the id value
+     *                                                      'updatefield' => 'updateValue')),
+     *                  array('mystandardobjecttype' => array('recordno' => 555, // you must pass the recordno value for standard objects
+     *                                                        'updatefield' => 'updateValue')));
+     * @param session Object an api_session instance with a valid connection
+     * @throws Exception This method has no return, but will throw an exception if the method fails
+     */
+    public static function update($records, $session) {
+        if (count($records) > 100) throw new Exception("Attempting to update more than 100 records.");
 
-        $createXml = "<create>" . $xml . "</create>";
-        return api_post::post($createXml, $session);
-
-    }
-
-    public static function update($xml, $session="") {
-        $updateXml = "<update>" . $xml . "</update>";
-        return api_post::post($updateXml, $session);
-    }
-
-    public static function updateEx($objects, $session="") {
-        if (count($objects) > 100) throw new Exception("Attempting to update more than 100 objects.");
-
-        // conver the $objectgs array into an xml structure                                                                          
+        // convert the $records array into an xml structure                                                                          
         $updateXml = "<update>";
         $node = '';
-        foreach($objects as $object) {
-            $nodeAry = array_keys($object);
+        foreach($records as $record) {
+            $nodeAry = array_keys($record);
             $node = $nodeAry[0];
-            $objXml = api_util::phpToXml($node, $object[$node]);
+            $objXml = api_util::phpToXml($node, $record[$node]);
             $updateXml = $updateXml . $objXml;
         }
         $updateXml = $updateXml . "</update>";
@@ -74,12 +96,29 @@ class api_post {
 
     }
 
-    public static function deleteEx($object, $ids, $session) {
+    /**
+     * Delete one or more records
+     * @param object String The type of object for the records you wish to delete.  
+     * You may not mix object types in this method.  Custom and standard objects
+     * are supported.  Refer to the developer web site to determine which standard
+     * objects are supported.
+     * @param ids String a comma seperated list of keys.  use 'id' values for custom
+     * objects and 'recorno' values for standard objects
+     * @throws Exception This method has not return, but will throw an exception if the method fails
+     */
+    public static function delete($object, $ids, $session) {
         $deleteXml = "<delete><object>$object</object><keys>$ids</keys></delete>";
         api_post::post($deleteXml, $session);
     }
 
-    public static function xml2_1_method($xml, $session="") {
+    /**
+     * Run any Intacct API method not directly implemented in this class.  You must pass
+     * valid XML for the method you wish to invoke.
+     * @param xml String valid XML for the method you wish to invoke
+     * @param session Object an api_session instance with a valid connection
+     * @return String the XML response from Intacct
+     */
+    public static function otherMethod($xml, $session) {
         return api_post::post($xml, $session);
     }
 
@@ -87,12 +126,12 @@ class api_post {
     /**
      * Return the records defined in a platform view.  Views define an object, a collection of field, sorting, and filtering.  You may pass additional filters 
      * via the api_viewFilters object
-     * @arg viewName String either the textual name of the view or the original id of the view (object#originalid).  Note view names are not guaranteed to be 
+     * @param viewName String either the textual name of the view or the original id of the view (object#originalid).  Note view names are not guaranteed to be 
      * unique, so you are always safer referencing the original id
-     * @arg session Object instance of the api session object
-     * @arg optional filterObj Object instance of the api_viewFilters object
-     * @arg optional maxRecords Integer defaults to 100000
-     * @arg optional returnFormat String defaults to phpobj.  Use one of the constants defined in api_returnFormat class
+     * @param session Object instance of the api session object
+     * @param filterObj [optional] Object instance of the api_viewFilters object
+     * @param maxRecords [optional] Integer defaults to 100000
+     * @param returnFormat [optional] String defaults to phpobj.  Use one of the constants defined in api_returnFormat class
      * @return Mixed Depends on the return format argument.  Returns a string unless phpobj is the return format in which case returns an array
      */
     public static function readView($viewName, $session, api_viewFilters $filterObj=NULL, $maxRecords = self::DEFAULT_MAXRETURN, $returnFormat = api_returnFormat::PHPOBJ) {
@@ -165,11 +204,11 @@ class api_post {
 
     /**
      * Read records using a query.  Specify the object you want to query and something like a "where" clause"
-     * @arg string object the object upon which to run the query
-     * @arg string query the query string to execute.  Use SQL operators 
-     * @arg string fields A comma separated list of fields to return
-     * @arg integer optional maxRecords number of records to return.  Defaults to 100000
-     * @arg string optional returnFormat defaults to php object.  Pass one of the valid constants from api_returnFormat class
+     * @param string object the object upon which to run the query
+     * @param string query the query string to execute.  Use SQL operators 
+     * @param string fields A comma separated list of fields to return
+     * @param integer optional maxRecords number of records to return.  Defaults to 100000
+     * @param string optional returnFormat defaults to php object.  Pass one of the valid constants from api_returnFormat class
      * @return mixed either string or array of objects depending on returnFormat argument
      */
     public static function readByQuery($object, $query, $fields, $session, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ) {
@@ -204,6 +243,13 @@ class api_post {
         return $objAry;
     }
 
+    /**
+     * Inspect an object to get a list of its fields
+     * @param String $object The integration name of the object.  Pass '*' to get a complete list of objects
+     * @param String $detail Whether or not to return data type information for the fields. 
+     * @param Object $session Instance of an api_session object with a valid connection
+     * @return String the raw xml returned by Intacct
+     */
     public static function inspect($object, $detail, $session) {
       $inspectXML = "<inspect detail='$detail'><object>$object</object></inspect>";
       $objAry = api_post::post($inspectXML, $session);
@@ -212,13 +258,13 @@ class api_post {
 
     /**                                                                                                                              
      * Read an object by its name field (vid for standard objects)                                                                   
-     * @arg object String object type                                                                                                
-     * @arg name String comma separated list of names.                                                                               
-     * @arg fields String comma separated list of fields.                            
-     * @arg session Optional Object api_session object. If not passed, the post method will look for session information in the REQUEST object
+     * @param String $object object type                                                                                                
+     * @param String $name comma separated list of names.                                                                               
+     * @param String $fields comma separated list of fields.                            
+     * @param Object $session  instance of api_session object. 
      * @return Array of objects.  If only one name is passed, the fields will be directly accessible.                                
      */
-    public static function readByName($object, $name, $fields, $session="") {
+    public static function readByName($object, $name, $fields, $session) {
         $name = HTMLSpecialChars($name);
         $readXml = "<readByName><object>$object</object><keys>$name</keys><fields>$fields</fields><returnFormat>csv</returnFormat></readByName>";
         $objCsv = api_post::post($readXml,$session);
@@ -232,6 +278,14 @@ class api_post {
         }
     }
 
+    /**
+     * Reads all the records related to a source record through a named relationship.
+     * @param String $object the integration name of the object
+     * @param String $keys a comma seperated list of 'id' values of the source records from which you want to read related records
+     * @param String $relation the name of the relationship.  This will determine the type of object you are reading
+     * @param String $fields a comma seperated list of fields to return
+     * @return Array of objects
+     */
     public static function readRelated($object, $keys, $relation, $fields,$session="") {
         $readXml = "<readRelated><object>$object</object><keys>$keys</keys><relation>$relation</relation><fields>$fields</fields><returnFormat>csv</returnFormat></readRelated>";
         $objCsv = api_post::post($readXml, $session);
@@ -243,9 +297,9 @@ class api_post {
     /**                                                                                                                              
      * WARNING: This method will attempt to delete all records of a given object type                                                
      * Deletes first 10000 by default                                                                                                
-     * @arg object String object type                                                                                                
-     * @arg session Object api_session object.                                                                                       
-     * @arg max Optional Integer Maximum number of records to delete.  Default is 10000                                              
+     * @param String $object object type                                                                                                
+     * @param Object $session instance of api_session object.                                                                                       
+     * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000                                              
      * @return Integer count of records deleted                                                                                      
      */
     public static function deleteAll($object, $session, $max=10000) {
@@ -262,34 +316,26 @@ class api_post {
         foreach($ids as $rec) {
             $delIds[] = $rec['id'];
             if (count($delIds) == 100) {
-                api_post::deleteEx($object, implode(",", $delIds));
+                api_post::delete($object, implode(",", $delIds));
                 $count += 100;
                 $delIds = array();
             }
         }
 
         if (count($delIds) > 0) {
-            api_post::deleteEx($object, implode(",", $delIds));
+            api_post::delete($object, implode(",", $delIds));
             $count += count($delIds);
         }
 
         return $count;
     }
 
-    private static function post($xml, $session="") {
+    private static function post($xml, $session) {
 
-        if ($session == "") {
-            $sessionId = $_GET['sessionId'];
-            $endPoint = $_GET['endPoint'];
-            $senderId = $_GET['senderId'];
-            $senderPassword = $_GET['senderPassword'];
-        }
-        else {
-            $sessionId = $session->sessionId;
-            $endPoint = $session->endPoint;
-            $senderId = $session->senderId;
-            $senderPassword = $session->senderPassword;
-        }
+	$sessionId = $session->sessionId;
+	$endPoint = $session->endPoint;
+	$senderId = $session->senderId;
+	$senderPassword = $session->senderPassword;
 
         $templateHead =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>                                                                                          
@@ -343,6 +389,13 @@ class api_post {
 
     }
 
+    /**
+     * You won't normally use this function, but if you just want to pass a fully constructed XML document
+     * to Intacct, then use this function.
+     * @param String $body a Valid XML string
+     * @param String $endPoint URL to post the XML to
+     * @return String the raw XML returned by Intacct
+     */
     public static function execute($body, $endPoint) {
 
         self::$lastRequest = $body;
@@ -456,6 +509,7 @@ class api_post {
     }
 
     /**
+     * Process results from any of the read methods and convert into the appropriate structure
      * @var response String result from post to Intacct Web Services
      * @var returnFormat String valid returnFormat value
      * @var count Integer by reference count of records returned
@@ -499,10 +553,18 @@ class api_post {
       
     }
     
+    /**
+     * Helpful for debugging purposes.  Get the last full XML document passed to Intacct
+     * @return String XML request
+     */
     public static function getLastRequest() {
       return self::$lastRequest;
     }
     
+    /**
+     * Helpful for debugging purposes.  Get the last response from Intacct
+     * @return String the raw respons from Intacct
+     */
     public static function getLastResponse() {
       return self::$lastResponse;
     }
