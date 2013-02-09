@@ -114,13 +114,13 @@ class api_session {
 
         if (!isset($simpleXml->operation)) {
             if (isset($simpleXml->errormessage)) {
-	      throw new Exception(api_util::xmlErrorToString($sipmleXml->errormessage->error[0]));
+	      throw new Exception(api_util::xmlErrorToString($simpleXml->errormessage->error[0]));
             }
         }
 
         $status = $simpleXml->operation->result->status;
         if ((string)$status != 'success') {
-            $error = $simpleXml->operation->result->errormessage;
+	            $error = $simpleXml->operation->result->errormessage;
             throw new Exception(" [Error] " . (string)$error->error[0]->description2);
         }
         else {
