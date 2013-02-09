@@ -181,13 +181,13 @@ class api_post {
 		$phpobj[] = $objRec;
 	      }
 	    }
-	    elseif ($returnFormat = api_returnFormat::CSV) {
+	    elseif ($returnFormat == api_returnFormat::CSV) {
 	      // append all but the first row to the CSV file
 	      $page = explode("\n", $page); 
 	      array_shift($page); 
 	      $csv .= implode($page, "\n");
 	    }
-	    elseif ($returnFormat = api_returnFormat::XML) {
+	    elseif ($returnFormat == api_returnFormat::XML) {
 	      // just add the xml string
 	      $xml .= $page;
 	    }
