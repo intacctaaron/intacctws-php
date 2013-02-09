@@ -64,7 +64,9 @@ class api_session {
         $responseObj = simplexml_load_string($response);
 
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
-	$this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+	//        $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+	// There's currently a defect in the getAPISession method where the URL returned is not HTTPS
+	$this->endPoint = self::DEFAULT_LOGIN_URL;
         $this->companyId = $companyId;
         $this->userId = $userId;
         $this->senderId = $senderId;
@@ -96,7 +98,9 @@ class api_session {
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
         $this->companyId = (string)$responseObj->operation->authentication->companyid;
         $this->userId = (string)$responseObj->operation->authentication->userid;
-	$this->endPoint = (string)$responseObj->operation->result->data->sessioninfo->endpoint;
+	//        $this->endPoint = (string)$responseObj->operation->result->data->sessioninfo->endpoint;
+	// there's a defect in the getAPISession method where the URL returned is not HTTPS
+	$this->endPoint = self::DEFAULT_LOGIN_URL;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
 
