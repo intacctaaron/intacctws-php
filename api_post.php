@@ -2,7 +2,7 @@
 include_once('api_util.php');
 include_once('api_viewFilter.php');
 include_once('api_viewFilters.php');
-
+include_once('api_returnFormat.php');
 
 class api_post {
 
