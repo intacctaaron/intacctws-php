@@ -151,8 +151,7 @@ class api_post {
       $filtersXmlStr = '';
       if ($filterObj !== NULL) {
 	$filters = $filterObj->filters;
-	$condition = $filterObJ->condition;
-	             
+	$condition = $filterObj->operator;
 	$filtersXml = array();
 	foreach($filters as $filter) {
 	  $filtersXml[] = "<filterExpression><field>{$filter->field}</field><operator>{$filter->operator}</operator><value>{$filter->value}</value></filterExpression>";
