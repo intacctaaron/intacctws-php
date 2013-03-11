@@ -96,7 +96,7 @@ class api_session {
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
         $this->companyId = (string)$responseObj->operation->authentication->companyid;
         $this->userId = (string)$responseObj->operation->authentication->userid;
-	$this->endPoint = (string)$responseObj->operation->result->data->sessioninfo->endpoint;
+	$this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
 
