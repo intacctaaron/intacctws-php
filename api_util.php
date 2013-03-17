@@ -71,7 +71,12 @@ class api_util {
     public static function phpToXml($key, $values) {
         $xml = "<" . $key . ">";
         foreach($values as $node => $value) {
-            $xml .= "<" . $node . ">" . htmlspecialchars($value) . "</" . $node . ">";
+            if (is_array($value)) {
+                $xml .= self::phpToXml($node,$value) ;
+            }
+            else {
+                $xml .= "<" . $node . ">" . htmlspecialchars($value) . "</" . $node . ">";
+            }
         }
         $xml .= "</" . $key . ">";
         return $xml;
