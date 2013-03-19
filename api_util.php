@@ -69,6 +69,10 @@ class api_util {
      * @return string xml                                                                                                            
      */
     public static function phpToXml($key, $values) {
+        if (!is_array($values)) {
+            return "<$key>$values</$key>";
+        }
+
         if (!is_numeric(array_shift(array_keys($values)))) {
             $xml = "<" . $key . ">";
         }
