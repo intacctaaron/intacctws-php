@@ -69,16 +69,27 @@ class api_util {
      * @return string xml                                                                                                            
      */
     public static function phpToXml($key, $values) {
-        $xml = "<" . $key . ">";
+        if (!is_array($values)) {
+            return "<$key>$values</$key>";
+        }
+
+        if (!is_numeric(array_shift(array_keys($values)))) {
+            $xml = "<" . $key . ">";
+        }
         foreach($values as $node => $value) {
             if (is_array($value)) {
+                if (is_numeric($node)) {
+                    $node = $key;
+                }
                 $xml .= self::phpToXml($node,$value) ;
             }
             else {
                 $xml .= "<" . $node . ">" . htmlspecialchars($value) . "</" . $node . ">";
             }
         }
-        $xml .= "</" . $key . ">";
+        if (!is_numeric(array_shift(array_keys($values)))) {
+            $xml .= "</" . $key . ">";
+        }
         return $xml;
     }
 
