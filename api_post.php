@@ -47,7 +47,6 @@ class api_post {
      * @return Array array of keys to the objects created
      */
     public static function create($records, $session) {
-
       if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
 
         // Convert the record into an xml structure                                                                                 
@@ -62,6 +61,7 @@ class api_post {
         $createXml = $createXml . "</create>";
         $res = api_post::post($createXml, $session);
         $records = api_post::processUpdateResults($res, $node);
+        //var_export($createXml);
 
         return $records;
     }
@@ -118,8 +118,21 @@ class api_post {
      * @param session Object an api_session instance with a valid connection
      * @return String the XML response from Intacct
      */
-    public static function otherMethod($xml, $session) {
-        return api_post::post($xml, $session);
+    public static function otherMethod($xml, $session,$dtdVersion="3.0") {
+        return api_post::post($xml, $session,$dtdVersion);
+    }
+
+    /**
+     * Run any Intacct API method not directly implemented in this class.  You must pass
+     * valid XML for the method you wish to invoke.
+     * @param function String for 2.1 function (create_sotransaction, etc)
+     * @param phpObj Array an array for the object.  Do not nest in anothe array() wrapper
+     * @param session Object an api_session instance with a valid connection
+     * @return String the XML response from Intacct
+     */
+    public static function call21Method($function, $phpObj, $session,$dtdVersion="3.0") {
+        $xml = api_util::phpToXml($function,array($phpObj));
+        return api_post::post($xml, $session,$dtdVersion);
     }
 
 
@@ -141,22 +154,22 @@ class api_post {
       // set the return format
       api_returnFormat::validateReturnFormat($returnFormat);
       if ($returnFormat == api_returnFormat::PHPOBJ) {
-	$returnFormatArg = api_returnFormat::CSV;
+    $returnFormatArg = api_returnFormat::CSV;
       }
       else {
-	$returnFormatArg = $returnFormat;
+    $returnFormatArg = $returnFormat;
       }
 
       // process the filters array
       $filtersXmlStr = '';
       if ($filterObj !== NULL) {
-	$filters = $filterObj->filters;
-	$condition = $filterObj->operator;
-	$filtersXml = array();
-	foreach($filters as $filter) {
-	  $filtersXml[] = "<filterExpression><field>{$filter->field}</field><operator>{$filter->operator}</operator><value>{$filter->value}</value></filterExpression>";
-	}
-	$filtersXmlStr = "<filters><filterCondition>$condition</filterCondition>" . join("",$filtersXml) . "</filters>";	
+    $filters = $filterObj->filters;
+    $condition = $filterObj->operator;
+    $filtersXml = array();
+    foreach($filters as $filter) {
+      $filtersXml[] = "<filterExpression><field>{$filter->field}</field><operator>{$filter->operator}</operator><value>{$filter->value}</value></filterExpression>";
+    }
+    $filtersXmlStr = "<filters><filterCondition>$condition</filterCondition>" . join("",$filtersXml) . "</filters>";    
       }
 
       $viewName = HTMLSpecialChars($viewName);
@@ -168,35 +181,35 @@ class api_post {
       $$returnFormat = self::processReadResults($response, $returnFormat, $count);
 
       if ($count == $pageSize && $count < $maxRecords) {
-	while (TRUE) {
-	  $readXml = "<readMore><view>$viewName</view></readMore>";
-	  try {
-	    $response = api_post::post($readXml, $session);
-	    api_post::validateReadResults($response);
-	    $page = self::processReadResults($response, $returnFormat, $pageCount);
-	    $count += $pageCount;
-	    if ($returnFormat == api_returnFormat::PHPOBJ) {
-	      foreach($page as $objRec) {
-		$phpobj[] = $objRec;
-	      }
-	    }
-	    elseif ($returnFormat == api_returnFormat::CSV) {
-	      // append all but the first row to the CSV file
-	      $page = explode("\n", $page); 
-	      array_shift($page); 
-	      $csv .= implode($page, "\n");
-	    }
-	    elseif ($returnFormat == api_returnFormat::XML) {
-	      // just add the xml string
-	      $xml .= $page;
-	    }
-	  }
-	  catch (Exception $ex) {
-	    // for now, pass the exception on
-	    Throw new Exception($ex);
-	  }
-	  if ($pageCount < $pageSize || $count >= $maxRecords) break;
-	}
+    while (TRUE) {
+      $readXml = "<readMore><view>$viewName</view></readMore>";
+      try {
+        $response = api_post::post($readXml, $session);
+        api_post::validateReadResults($response);
+        $page = self::processReadResults($response, $returnFormat, $pageCount);
+        $count += $pageCount;
+        if ($returnFormat == api_returnFormat::PHPOBJ) {
+          foreach($page as $objRec) {
+        $phpobj[] = $objRec;
+          }
+        }
+        elseif ($returnFormat == api_returnFormat::CSV) {
+          // append all but the first row to the CSV file
+          $page = explode("\n", $page); 
+          array_shift($page); 
+          $csv .= implode($page, "\n");
+        }
+        elseif ($returnFormat == api_returnFormat::XML) {
+          // just add the xml string
+          $xml .= $page;
+        }
+      }
+      catch (Exception $ex) {
+        // for now, pass the exception on
+        Throw new Exception($ex);
+      }
+      if ($pageCount < $pageSize || $count >= $maxRecords) break;
+    }
       }
       return $$returnFormat;
     }
@@ -214,10 +227,10 @@ class api_post {
 
         $query = HTMLSpecialChars($query);
         $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>csv</returnFormat>";
-	if ($maxRecords < 100) {
-	  $readXml .= "<pagesize>$maxRecords</pagesize>";
-	}
-	$readXml .= "</readByQuery>";
+    if ($maxRecords < 100) {
+      $readXml .= "<pagesize>$maxRecords</pagesize>";
+    }
+    $readXml .= "</readByQuery>";
         $objCsv = api_post::post($readXml,$session);
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
@@ -329,12 +342,12 @@ class api_post {
         return $count;
     }
 
-    private static function post($xml, $session) {
+    private static function post($xml, $session, $dtdVersion="3.0") {
 
-	$sessionId = $session->sessionId;
-	$endPoint = $session->endPoint;
-	$senderId = $session->senderId;
-	$senderPassword = $session->senderPassword;
+        $sessionId = $session->sessionId;
+        $endPoint = $session->endPoint;
+        $senderId = $session->senderId;
+        $senderPassword = $session->senderPassword;
 
         $templateHead =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>                                                                                          
@@ -342,9 +355,9 @@ class api_post {
     <control>                                                                                                                        
         <senderid>{2%}</senderid>                                                                                                    
         <password>{3%}</password>                                        
-	<controlid>foobar</controlid>                                                                                                
+    <controlid>foobar</controlid>                                                                                                
         <uniqueid>false</uniqueid>                                                                                                   
-        <dtdversion>3.0</dtdversion>                                                                                                 
+        <dtdversion>{4%}</dtdversion>                                                                                                 
     </control>                                                                                                                       
     <operation>                                                                                                                      
         <authentication>                                                                                                             
@@ -363,29 +376,29 @@ class api_post {
         $xml = str_replace("{1%}", $sessionId, $xml);
         $xml = str_replace("{2%}", $senderId, $xml);
         $xml = str_replace("{3%}", $senderPassword, $xml);
+        $xml = str_replace("{4%}", $dtdVersion, $xml);
 
-	$count = 0; // retry five times on too many operations
-	while (true) {
-	  $res = api_post::execute($xml, $endPoint);
-	  
-	  // If we didn't get a response, we had a poorly constructed XML request.                                                     
-	  try {
-	    api_post::validateResponse($res, $xml);
-	    break;
-	  }
-	  catch (Exception $ex) {
-	    if (strpos($ex->getMessage(), "too many operations") !== false) {
-	      $count++;
-	      if ($count >= 5) {
-		throw new Exception($ex);
-	      } 
-	    } else {
-	      throw new Exception($ex);
-	    }
-	  }
-	}
+        $count = 0; // retry five times on too many operations
+        while (true) {
+            $res = api_post::execute($xml, $endPoint);
+            var_export($res);
+            // If we didn't get a response, we had a poorly constructed XML request.                                                     
+            try {
+                api_post::validateResponse($res, $xml);
+                break;
+            }
+            catch (Exception $ex) {
+                if (strpos($ex->getMessage(), "too many operations") !== false) {
+                    $count++;
+                    if ($count >= 5) {
+                        throw new Exception($ex);
+                    } 
+                } else {
+                    throw new Exception($ex);
+                }
+            }
+        }
         return $res;
-
     }
 
     /**
@@ -400,22 +413,23 @@ class api_post {
         self::$lastRequest = $body;
 
         $ch = curl_init();
-	curl_setopt( $ch, CURLOPT_URL, $endPoint );
+    curl_setopt( $ch, CURLOPT_URL, $endPoint );
         curl_setopt( $ch, CURLOPT_HEADER, 0 );
         curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1 );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-	//        curl_setopt( $ch, CURLOPT_MUTE, 1 );
+    //        curl_setopt( $ch, CURLOPT_MUTE, 1 );
         curl_setopt( $ch, CURLOPT_TIMEOUT, 3000 ); //Seconds until timeout
         curl_setopt( $ch, CURLOPT_POST, 1 );
-	curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false); // yahoo doesn't like the api.intacct.com CA
+    curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false); // yahoo doesn't like the api.intacct.com CA
 
         $body = "xmlrequest=" . urlencode( $body );
         curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
 
+
         $response = curl_exec( $ch );
         $error = curl_error($ch);
         if ($error != "") {
-	  //            throw new exception("[" . $endPoint . "] " . $error);
+            //throw new exception("[" . $endPoint . "] " . $error);
             throw new exception($error);
         }
         curl_close( $ch );
@@ -427,33 +441,35 @@ class api_post {
 
     private static function validateResponse($response, $xml="") {
 
-      // don't send errors to the log
-      libxml_use_internal_errors(TRUE);
-      // the client asked for a non-xml response (csv or json)                                                                           
-      $simpleXml = @simplexml_load_string($response);
-      if ($simpleXml === false) {
-	return;
-      }
-      libxml_use_internal_errors(FALSE);
+        // don't send errors to the log
+        libxml_use_internal_errors(TRUE);
+        // the client asked for a non-xml response (csv or json)                                                                           
+        $simpleXml = @simplexml_load_string($response);
+        if ($simpleXml === false) {
+            return;
+        }
+        libxml_use_internal_errors(FALSE);
 
-	// look for a failure in the operation, but not the result
-	if (isset($simpleXml->operation->errormessage)) {
-	  $error = $simpleXml->operation->errormessage->error[0];
-	  throw new Exception("[ERROR: " . $error->errorno . "] " . $error->description2);
-	}
+        // look for a failure in the operation, but not the result
+        if (isset($simpleXml->operation->errormessage)) {
+            $error = $simpleXml->operation->errormessage->error[0];
+            throw new Exception("[ERROR: " . $error->errorno . "] " . $error->description2);
+        }
         // if we didn't get an operation, the request failed and we should raise an exception                                         
         // with the error details                                                                                                    
-	// did the method invocation fail?
+        // did the method invocation fail?
         if (!isset($simpleXml->operation)) {
 
             if (isset($simpleXml->errormessage)) {
-	      throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
+                throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
+        }
+        else if ($simpleXml->operation->result->status == "failure") {
+            throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->operation->result->errormessage));
         }
         else {
             return;
         }
-
     }
 
     private static function processUpdateResults($response, $objectName) {
@@ -468,7 +484,7 @@ class api_post {
         if ($status != "success") {
             //find the problem and raise an exception                                                                                
             $error = $simpleXml->operation->result->errormessage;
-	    throw new Exception("[Error] " . api_util::xmlErrorToString($error));
+        throw new Exception("[Error] " . api_util::xmlErrorToString($error));
         }
 
         $updates = array();
@@ -486,23 +502,23 @@ class api_post {
       libxml_use_internal_errors(FALSE);
 
       if ($simpleXml === false) {
-	return; // the result is csv or json, so there's no error
+    return; // the result is csv or json, so there's no error
       }
-	
+    
       // Is there a problem with the XML request?
       if ((string)$simpleXml->operation->result->status == 'false') {
-	$error = $simpleXml->operation->errormessage[0];
-	throw new Exception("[Error] " . api_util::xmlErrorToString($error));
+    $error = $simpleXml->operation->errormessage[0];
+    throw new Exception("[Error] " . api_util::xmlErrorToString($error));
       }
       
       // is there a problem with the method invocation?
       $status = $simpleXml->operation->result->status;
       if ((string)$status != 'success') {
-	$error = $simpleXml->operation->result->errormessage;
-	throw new Exception("[Error] " . api_util::xmlErrorToString($error));
+    $error = $simpleXml->operation->result->errormessage;
+    throw new Exception("[Error] " . api_util::xmlErrorToString($error));
       }
       else {
-	return; // no error found.                                                            
+    return; // no error found.                                                            
       }
       
     }
@@ -517,37 +533,37 @@ class api_post {
     private static function processReadResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
       $objAry = array(); $csv = ''; $json = ''; $xml = '';
       if ($returnFormat == api_returnFormat::PHPOBJ) {
-	$objAry = api_util::csvToPhp($response);
-	$count = count($objAry);
-	return $objAry;
+    $objAry = api_util::csvToPhp($response);
+    $count = count($objAry);
+    return $objAry;
       }
       elseif ($returnFormat == api_returnFormat::JSON) {
-	// this seems really expensive
-	$objAry = json_decode($response);    
-	// todo: JSON doesn't work because we don't know what object to refer to
-	$json = $response;
-	$count = eval("foobar");
-	return $json;
+    // this seems really expensive
+    $objAry = json_decode($response);    
+    // todo: JSON doesn't work because we don't know what object to refer to
+    $json = $response;
+    $count = eval("foobar");
+    return $json;
       }
       elseif ($returnFormat == api_returnFormat::XML) {
-	$xmlObj = simplexml_load_string($response);
-	foreach($xmlObj->operation->result->data->attributes() as $attribute => $value) {
-	  if ($attribute == 'count') {
-	    $count = $value;
-	    break;
-	  }
-	}	
-	$xml = $xmlObj->operation->result->data->view->asXml();
-	return $xml;
+    $xmlObj = simplexml_load_string($response);
+    foreach($xmlObj->operation->result->data->attributes() as $attribute => $value) {
+      if ($attribute == 'count') {
+        $count = $value;
+        break;
+      }
+    }    
+    $xml = $xmlObj->operation->result->data->view->asXml();
+    return $xml;
       }
       elseif ($returnFormat == api_returnFormat::CSV) {
-	$objAry = api_util::csvToPhp($response);
-	$count = count($objAry);
-	$csv = $response;
-	return $csv;
+    $objAry = api_util::csvToPhp($response);
+    $count = count($objAry);
+    $csv = $response;
+    return $csv;
       }
       else {
-	throw new Exception('bad code.  you suck.');
+    throw new Exception('bad code.  you suck.');
       }
       
     }
