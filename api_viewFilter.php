@@ -12,9 +12,9 @@ class api_viewFilter {
      * @param String $value The value to apply to the filter
      */ 
     function __construct($field, $operator, $value) {
-	$this->field = $field;
-	$this->operator = $operator;
-	$this->value = HTMLSpecialChars($value);
+        $this->field = $field;
+        $this->operator = $operator;
+        $this->value = HTMLSpecialChars($value);
     }
 }
 ?>

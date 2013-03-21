@@ -49,7 +49,7 @@ class api_post {
      */
     public static function create($records, api_session $session) {
 
-      if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
+        if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
 
         // Convert the record into an xml structure                                                                                 
         $createXml = "<create>";
@@ -115,12 +115,26 @@ class api_post {
      * valid XML for the method you wish to invoke.
      * @param String $xml valid XML for the method you wish to invoke
      * @param api_session $session an api_session instance with a valid connection
+     * @param string $dtdVersion Either "2.1" or "3.0" defaults to "3.0"
      * @return String the XML response from Intacct
      */
-    public static function otherMethod($xml, api_session $session) {
-        return api_post::post($xml, $session);
+    public static function otherMethod($xml, api_session $session, $dtdVersion="3.0") {
+        return api_post::post($xml, $session,$dtdVersion);
     }
 
+    /**
+     * Run any Intacct API method not directly implemented in this class.  You must pass
+     * valid XML for the method you wish to invoke.
+     * @param String $function for 2.1 function (create_sotransaction, etc)
+     * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
+     * @param api_session $session  an api_session instance with a valid connection
+     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "3.0"
+     * @return String the XML response from Intacct
+     */
+    public static function call21Method($function, $phpObj, api_session $session, $dtdVersion="3.0") {
+        $xml = api_util::phpToXml($function,array($phpObj));
+        return api_post::post($xml, $session,$dtdVersion);
+    }
 
     /**
      * Return the records defined in a platform view.  Views define an object, a collection of field, sorting, and filtering.  You may pass additional filters
@@ -135,7 +149,7 @@ class api_post {
      * @return Mixed Depends on the return format argument.  Returns a string unless phpobj is the return format in which case returns an array
      */
     public static function readView($viewName, api_session $session, api_viewFilters $filterObj=NULL, $maxRecords = self::DEFAULT_MAXRETURN, $returnFormat = api_returnFormat::PHPOBJ) {
-     
+
         $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
 
         // set the return format
@@ -164,7 +178,7 @@ class api_post {
         $readXml="<readView><view>$viewName</view><pagesize>$pageSize</pagesize><returnFormat>$returnFormatArg</returnFormat>$filtersXmlStr</readView>";
         $response = api_post::post($readXml, $session);
         api_post::validateReadResults($response);
-        $phpobj = array(); $csv = ''; $xml = ''; $count = 0;
+        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
         $$returnFormat = self::processReadResults($response, $returnFormat, $count);
 
         if ($count == $pageSize && $count < $maxRecords) {
@@ -335,10 +349,11 @@ class api_post {
      * Internal method for posting the invocation to the Intacct XML Gateway
      * @param String $xml the XML request document
      * @param api_session $session
-     * @return String the XML response document
+     * @param string $dtdVersion
      * @throws Exception
+     * @return String the XML response document
      */
-    private static function post($xml, api_session $session) {
+    private static function post($xml, api_session $session, $dtdVersion="3.0") {
 
         $sessionId = $session->sessionId;
         $endPoint = $session->endPoint;
@@ -351,9 +366,9 @@ class api_post {
     <control>                                                                                                                        
         <senderid>{2%}</senderid>                                                                                                    
         <password>{3%}</password>                                        
-	<controlid>foobar</controlid>                                                                                                
+        <controlid>foobar</controlid>
         <uniqueid>false</uniqueid>                                                                                                   
-        <dtdversion>3.0</dtdversion>                                                                                                 
+        <dtdversion>{4%}</dtdversion>                                                                                                 
     </control>                                                                                                                       
     <operation>                                                                                                                      
         <authentication>                                                                                                             
@@ -372,8 +387,10 @@ class api_post {
         $xml = str_replace("{1%}", $sessionId, $xml);
         $xml = str_replace("{2%}", $senderId, $xml);
         $xml = str_replace("{3%}", $senderPassword, $xml);
+        $xml = str_replace("{4%}", $dtdVersion, $xml);
 
         $count = 0; // retry five times on too many operations
+        $res = "";
         while (true) {
             $res = api_post::execute($xml, $endPoint);
 
@@ -394,7 +411,6 @@ class api_post {
             }
         }
         return $res;
-
     }
 
     /**
@@ -464,10 +480,12 @@ class api_post {
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
+        else if ($simpleXml->operation->result->status == "failure") {
+            throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->operation->result->errormessage));
+        }
         else {
             return;
         }
-
     }
 
     /**
@@ -506,6 +524,7 @@ class api_post {
      * @throws Exception
      */
     private static function validateReadResults($response) {
+
         // don't send warnings to the error log
         libxml_use_internal_errors(TRUE);
         $simpleXml = simplexml_load_string($response);
@@ -595,4 +614,3 @@ class api_post {
       return self::$lastResponse;
     }
 }
-?>

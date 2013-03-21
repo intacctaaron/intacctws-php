@@ -1,13 +1,14 @@
 <?
 /**                                                                                                                                  
- * Utility methods for the fixed assets application                                                                                  
+ * Utility methods for the intacctws-php classes
  */
 class api_util {
 
-    /**                                                                                                                              
-     * Convert a currency amount to a decimal amount                                                                                 
-     * @param value String amount in currency format                                                                                 
-     * @return Decimal amount in decimal format                                                                                      
+    /**
+     * Convert a currency amount to a decimal amount
+     * @param String $value
+     * @internal param String $value amount in currency format
+     * @return Decimal amount in decimal format
      */
     public static function currToDecimal($value) {
         $new = "";
@@ -20,10 +21,10 @@ class api_util {
 
     }
 
-    /**                                                                                                                              
-     * Convert a date to the old 2.1 date format                                                                                     
-     * @param date String date in format "m/d/Y"                                                                                     
-     * @return String in the old 2.1 xml date format                                                                                 
+    /**
+     * Convert a date to the old 2.1 date format
+     * @param String $date date in format "m/d/Y"
+     * @return String in the old 2.1 xml date format
      */
     public static function dateToOldDate($date) {
         $xml = "";
@@ -33,12 +34,13 @@ class api_util {
         return $xml;
     }
 
-    /**                                                                                                                              
-     * Given a starting date and a number of periods, return an array of dates                                                       
-     * where the first date is the last day of the month of the first period                                                         
-     * and every subsequent date is the last day of the following month                                                              
-     * @param date String starting date                                                                                              
-     * @param count Integer number of periods to compute                                                                             
+    /**
+     * Given a starting date and a number of periods, return an array of dates
+     * where the first date is the last day of the month of the first period
+     * and every subsequent date is the last day of the following month
+     * @param String $date starting date
+     * @param int $count number of periods to compute
+     * @return array
      */
     public static function getRangeOfDates($date, $count) {
         // the first date is the first of the following month                                                                        
@@ -64,16 +66,32 @@ class api_util {
 
     /**                                                                                                                              
      * Convert a php structure to an XML element                                                                                     
-     * @param key String element name                                                                                                
-     * @param values Array element values                                                                                            
+     * @param String $key element name
+     * @param Array $values element values
      * @return string xml                                                                                                            
      */
     public static function phpToXml($key, $values) {
-        $xml = "<" . $key . ">";
-        foreach($values as $node => $value) {
-            $xml .= "<" . $node . ">" . htmlspecialchars($value) . "</" . $node . ">";
+        if (!is_array($values)) {
+            return "<$key>$values</$key>";
         }
-        $xml .= "</" . $key . ">";
+
+        if (!is_numeric(array_shift(array_keys($values)))) {
+            $xml = "<" . $key . ">";
+        }
+        foreach($values as $node => $value) {
+            if (is_array($value)) {
+                if (is_numeric($node)) {
+                    $node = $key;
+                }
+                $xml .= self::phpToXml($node,$value) ;
+            }
+            else {
+                $xml .= "<" . $node . ">" . htmlspecialchars($value) . "</" . $node . ">";
+            }
+        }
+        if (!is_numeric(array_shift(array_keys($values)))) {
+            $xml .= "</" . $key . ">";
+        }
         return $xml;
     }
 
@@ -106,27 +124,26 @@ class api_util {
 
     /**
      * Convert a error object into nice text
-     * @arg error simpleXmlObject
+     * @param Object $error simpleXmlObject
      * @return string formatted error message
      */
     public static function xmlErrorToString($error) {
 
-      if (!is_object($error)) {
-	return "Malformed error: " . var_export($error, true);
-      }
+        if (!is_object($error)) {
+            return "Malformed error: " . var_export($error, true);
+        }
 
-      $error = $error->error[0];
-      if (!is_object($error)) {
-	return "Malformed error: " . var_export($error, true);
-      }
+        $error = $error->error[0];
+        if (!is_object($error)) {
+            return "Malformed error: " . var_export($error, true);
+        }
 
-      $errorno = is_object($error->errorno) ? (string)$error->errorno : ' ';
-      $description = is_object($error->description) ? (string)$error->description : ' ';
-      $description2 = is_object($error->description2) ? (string)$error->description2 : ' ';
-      $correction = is_object($error->correction) ? (string)$error->correction : ' ';
-      return "$errorno: $description: $description2: $correction";
+        $errorno = is_object($error->errorno) ? (string)$error->errorno : ' ';
+        $description = is_object($error->description) ? (string)$error->description : ' ';
+        $description2 = is_object($error->description2) ? (string)$error->description2 : ' ';
+        $correction = is_object($error->correction) ? (string)$error->correction : ' ';
+        return "$errorno: $description: $description2: $correction";
     }
 
 
 }
-?>
