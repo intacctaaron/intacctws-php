@@ -131,9 +131,9 @@ class api_post {
      * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "3.0"
      * @return String the XML response from Intacct
      */
-    public static function call21Method($function, $phpObj, api_session $session, $dtdVersion="3.0") {
+    public static function call21Method($function, $phpObj, api_session $session) {
         $xml = api_util::phpToXml($function,array($phpObj));
-        return api_post::post($xml, $session,$dtdVersion);
+        return api_post::post($xml, $session,"2.1");
     }
 
     /**
