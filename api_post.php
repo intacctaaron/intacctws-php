@@ -157,7 +157,6 @@ class api_post {
      * @param String $function for 2.1 function (create_sotransaction, etc)
      * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
      * @param api_session $session  an api_session instance with a valid connection
-     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "3.0"
      * @return String the XML response from Intacct
      */
     public static function call21Method($function, $phpObj, api_session $session) {
@@ -540,7 +539,7 @@ class api_post {
 
         $updates = array();
         foreach($simpleXml->operation->result->data->{$objectName} as $record) {
-            $updates[] = (string)$record[0]->id;
+            $updates[] = (string)$record->id;
         }
 
         return $updates;
