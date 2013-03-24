@@ -539,7 +539,7 @@ class api_post {
 
         $updates = array();
         foreach($simpleXml->operation->result->data->{$objectName} as $record) {
-            $updates[] = (string)$record[0]->id;
+            $updates[] = (string)$record->id;
         }
 
         return $updates;
