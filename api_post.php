@@ -598,9 +598,7 @@ class api_post {
             // this seems really expensive
             $objAry = json_decode($response);
             // todo: JSON doesn't work because we don't know what object to refer to
-            $json = $response;
-            $count = eval("foobar");
-            return $json;
+            throw new Exception("The JSON return format is not implemented yet.");
         }
         elseif ($returnFormat == api_returnFormat::XML) {
             $xmlObj = simplexml_load_string($response);
@@ -620,7 +618,7 @@ class api_post {
             return $csv;
         }
         else {
-            throw new Exception('bad code.  you suck.');
+            throw new Exception("Unknown return format $returnFormat.  Refer to the api_returnFormat class.");
         }
 
     }
