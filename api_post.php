@@ -99,6 +99,84 @@ class api_post {
     }
 
     /**
+     * Checks to see if a record exists.  If so, it updates, else it creates
+     *
+     * @param String      $object       The type of object to perform upsert on
+     * @param Array       $records      Array of records to upsert.  Should be passed in the same format as used with
+     *                                  create and update
+     * @param Mixed       $nameField    the field name used for lookup of existence
+     * @param Mixed       $keyField     the field name used for the internal key (needed for update)
+     * @param api_session $session      An active api_session object
+     * @param bool        $readOnlyName Optional.  You shouldn't normally set this to true unless the value in the
+     *                                  name field is actually set by the platform and you're passing a formulated value
+     *                                  that should not be passed in the create or update
+     *
+     * @throws Exception
+     * @return null
+     */
+    public static function upsert($object, $records, $nameField, $keyField, api_session $session, $readOnlyName = false)
+    {
+        if (count($records) > 100) {
+            throw new Exception("You can only upsert up to 100 records at a time.  You passed " . count($records) . " $object records.");
+        }
+        $keys = array();
+        foreach ($records as $record) {
+            $keys[] = htmlspecialchars(str_replace('\'', '\\', $record[$object][$nameField]));
+        }
+
+        $where = "$nameField in ('" . join("','", $keys) . "')";
+        $existingRecords = api_post::readByQuery($object, $where, "$nameField,$keyField", $session);
+        $toUpdate = array(); $toCreate = array();
+        if (count($existingRecords) == 0) {
+            if ($readOnlyName == true) {
+                foreach ($records as $key => $rec) {
+                    unset($records[$key][$object][$nameField]);
+                }
+            }
+            api_post::create($records, $session);
+        } else {
+            // convert the result into an array of keys
+            $existingKeys = array();
+            foreach ($existingRecords as $rec) {
+                $existingKeys[] = $rec[$nameField];
+            }
+
+            // also create an index by name
+            $existingByName = array();
+            foreach ($existingRecords as $rec) {
+                $existingByName[$rec[$nameField]] = $rec[$keyField];
+            }
+
+            foreach ($records as $rec) {
+                if (in_array($rec[$object][$nameField], $existingKeys)) {
+                    $toUpdate[] = $rec;
+                } else {
+                    $toCreate[] = $rec;
+                }
+            }
+
+            // convert the create and update arrays into operable structures
+            if (count($toCreate) > 0) {
+                if ($readOnlyName === true) {
+                    foreach ($toCreate as $key => $rec) {
+                        unset($toCreate[$key][$object][$nameField]);
+                    }
+                }
+                api_post::create($toCreate, $session);
+            }
+            if (count($toUpdate) > 0) {
+                foreach ($toUpdate as $updateKey => $updateRec) {
+                    $toUpdate[$updateKey][$object][$keyField] = $existingByName[$updateRec[$object][$nameField]];
+                    if ($readOnlyName === true) {
+                        unset($toUpdate[$updateKey][$object][$nameField]);
+                    }
+                }
+                api_post::update($toUpdate, $session);
+            }
+        }
+    }
+
+    /**
      * Delete one or more records
      * @param String $object integration code of object type to delete
      * @param String $ids String a comma separated list of keys.  use 'id' values for custom
@@ -613,9 +691,7 @@ class api_post {
             // this seems really expensive
             $objAry = json_decode($response);
             // todo: JSON doesn't work because we don't know what object to refer to
-            $json = $response;
-            $count = eval("foobar");
-            return $json;
+            throw new Exception("The JSON return format is not implemented yet.");
         }
         elseif ($returnFormat == api_returnFormat::XML) {
             $xmlObj = simplexml_load_string($response);
@@ -635,7 +711,7 @@ class api_post {
             return $csv;
         }
         else {
-            throw new Exception('bad code.  you suck.');
+            throw new Exception("Unknown return format $returnFormat.  Refer to the api_returnFormat class.");
         }
 
     }
