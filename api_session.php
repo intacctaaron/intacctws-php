@@ -163,6 +163,13 @@ class api_session {
             }
         }
 
+        if (isset($simpleXml->operation->authentication->status)) {
+            if ($simpleXml->operation->authentication->status != 'success') {
+                $error = $simpleXml->operation->errormessage;
+                throw new Exception(" [Error] " . (string)$error->error[0]->description2);
+            }
+        }
+
         $status = $simpleXml->operation->result->status;
         if ((string)$status != 'success') {
             $error = $simpleXml->operation->result->errormessage;
