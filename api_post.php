@@ -304,35 +304,69 @@ class api_post {
      * @return mixed either string or array of objects depending on returnFormat argument
      */
     public static function readByQuery($object, $query, $fields, api_session $session, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ) {
+
+        $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
+
+        if ($returnFormat == api_returnFormat::PHPOBJ) {
+            $returnFormatArg = api_returnFormat::CSV;
+        }
+        else {
+            $returnFormatArg = $returnFormat;
+        }
+
         // TODO: Implement returnFormat.  Today we only support PHPOBJ
         $query = HTMLSpecialChars($query);
-        $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>csv</returnFormat>";
-        if ($maxRecords < 100) {
-            $readXml .= "<pagesize>$maxRecords</pagesize>";
-        }
+
+        $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>$returnFormatArg</returnFormat>";
+        $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</readByQuery>";
-        $objCsv = api_post::post($readXml,$session);
-        api_post::validateReadResults($objCsv);
-        $objAry = api_util::csvToPhp($objCsv);
-        $count = count($objAry);
-        while(count($objAry) >= 100 && $count <= $maxRecords) {
+
+        $response = api_post::post($readXml,$session);
+        api_post::validateReadResults($response);
+
+
+        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
+        $$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
+
+        $totalcount = $thiscount;
+
+        // we have no idea if there are more if CSV is returned, so just check
+        // if the last count returned was  $pageSize
+        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
-                $objCsv = api_post::post($readXml, $session);
-                api_post::validateReadResults($objCsv);
-                $objPage = api_util::csvToPhp($objCsv);
-                if (!is_array($objPage) || count($objPage) == 0) break;
-                foreach($objPage as $objRec) {
-                    $objAry[] = $objRec;
+                $response = api_post::post($readXml, $session);
+                api_post::validateReadResults($response);
+                $page = self::processReadResults($response, $returnFormat, $pageCount);
+                $totalcount += $pageCount;
+                $thiscount = $pageCount;
+
+                switch($returnFormat) {
+                    case api_returnFormat::PHPOBJ:
+                        foreach($page as $objRec) {
+                            $phpobj[] = $objRec;
+                        }
+                    break;
+                    case api_returnFormat::CSV:
+                        $page = explode("\n", $page);
+                        array_shift($page);
+                        $csv .= implode($page, "\n");
+                    break;
+                    case api_returnFormat::XML:
+                        $xml .= $page;
+                    break;
+                    default:
+                        throw new Exception("Invalid return format: " . $returnFormat);
+                    break;
                 }
-                $count += count($objPage); // could just do a count of objAry, but this performs better
+
             }
             catch (Exception $ex) {
                 // we've probably exceeded the limit
                 break;
             }
         }
-        return $objAry;
+        return $$returnFormat;
     }
 
     /**
