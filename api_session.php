@@ -9,7 +9,7 @@ class api_session {
     public $userId;
     public $senderId;
     public $senderPassword;
-    public $transaction;
+    public $transaction = false;
 
     const XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <request>
@@ -56,7 +56,7 @@ class api_session {
      * @param String $senderPassword Your Intacct Partner password
      * @throws Exception this method returns no value, but will raise any connection exceptions
      */
-    public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword, $transaction = false) {
+    public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword) {
 
         $xml = self::XML_HEADER . self::XML_LOGIN . self::XML_FOOTER;
 
@@ -77,8 +77,6 @@ class api_session {
         $this->userId = $userId;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
-        $this->transaction = $transaction;
-
     }
 
     /**
@@ -91,7 +89,7 @@ class api_session {
      * @param String $clientid The sub entity id
      * @throws Exception this method returns no value, but will raise any connection exceptions
      */
-    public function connectCredentialsEntity($companyId, $userId, $password, $senderId, $senderPassword,$clientId,$transaction = false) {
+    public function connectCredentialsEntity($companyId, $userId, $password, $senderId, $senderPassword,$clientId) {
 
         $xml = self::XML_HEADER . self::XML_ENTITY_LOGIN . self::XML_FOOTER;
 
@@ -113,7 +111,6 @@ class api_session {
         $this->userId = $userId;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
-        $this->transaction = $transaction;
     }
 
     /**
@@ -125,7 +122,7 @@ class api_session {
      * @param String $senderPassword Your Intacct partner password
      * @throws Exception This method returns no values, but will raise an exception if there's a connection error
      */
-    public function connectSessionId($sessionId, $senderId, $senderPassword,$transaction = false) {
+    public function connectSessionId($sessionId, $senderId, $senderPassword) {
 
         $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER;
         $xml = str_replace("{1%}", $sessionId, $xml);
@@ -143,8 +140,6 @@ class api_session {
         $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
-        $this->transaction = $transaction;
-
     }
 
     private static function validateConnection($response) {
