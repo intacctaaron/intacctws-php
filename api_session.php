@@ -34,18 +34,48 @@ class api_session {
                         <userid>{1%}</userid>
                         <companyid>{2%}</companyid>
                         <password>{3%}</password>
-                </login>";
-
-    const XML_ENTITY_LOGIN = "<login>
-                        <userid>{1%}</userid>
-                        <companyid>{2%}</companyid>
-                        <password>{3%}</password>
-                        <clientid>{%clientid%}</clientid>
+                        {%entityid%}
                 </login>";
 
     const XML_SESSIONID = "<sessionid>{1%}</sessionid>";
 
     const DEFAULT_LOGIN_URL = "https://api.intacct.com/ia/xml/xmlgw.phtml";
+
+
+    /**
+     * Connect to the Intacct Web Service using a set of user credntials for a subentity
+     * @param String $companyId company to connect to
+     * @param String $userId user
+     * @param String $password The users's password
+     * @param String $senderId Your Intacct Partner sender id
+     * @param String $senderPassword Your Intacct Partner password
+     * @param String $entityType location || client
+     * @param String $entityId The sub entity id
+     * @throws Exception this method returns no value, but will raise any connection exceptions
+     */
+    private function buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType = null, $entityId = null ) 
+    {
+
+        $xml = self::XML_HEADER . self::XML_LOGIN . self::XML_FOOTER;
+
+        $xml = str_replace("{1%}", $userId, $xml);
+        $xml = str_replace("{2%}", $companyId, $xml);
+        $xml = str_replace("{3%}", $password, $xml);
+        $xml = str_replace("{4%}", $senderId, $xml);
+        $xml = str_replace("{5%}", $senderPassword, $xml);
+
+        if ($entityType == 'location') {
+            $xml = str_replace("{%entityid%}", "<locationid>$entityId</locationid>", $xml);
+        }
+        else if ($entityType == 'client') {
+            $xml = str_replace("{%entityid%}", "<clientid>$entityId</clientid>", $xml);
+        }
+        else {
+            $xml = str_replace("{%entityid%}", "", $xml);
+        }
+
+        return $xml;
+    }
 
     /**
      * Connect to the Intacct Web Service using a set of user credntials
@@ -58,13 +88,8 @@ class api_session {
      */
     public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword) {
 
-        $xml = self::XML_HEADER . self::XML_LOGIN . self::XML_FOOTER;
+        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword); 
 
-        $xml = str_replace("{1%}", $userId, $xml);
-        $xml = str_replace("{2%}", $companyId, $xml);
-        $xml = str_replace("{3%}", $password, $xml);
-        $xml = str_replace("{4%}", $senderId, $xml);
-        $xml = str_replace("{5%}", $senderPassword, $xml);
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
         self::validateConnection($response);
@@ -79,6 +104,7 @@ class api_session {
         $this->senderPassword = $senderPassword;
     }
 
+
     /**
      * Connect to the Intacct Web Service using a set of user credntials for a subentity
      * @param String $companyId company to connect to
@@ -86,19 +112,14 @@ class api_session {
      * @param String $password The users's password
      * @param String $senderId Your Intacct Partner sender id
      * @param String $senderPassword Your Intacct Partner password
+     * @param String $entityType location || client
      * @param String $clientid The sub entity id
      * @throws Exception this method returns no value, but will raise any connection exceptions
      */
-    public function connectCredentialsEntity($companyId, $userId, $password, $senderId, $senderPassword,$clientId) {
+    public function connectCredentialsEntity($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId) {
 
-        $xml = self::XML_HEADER . self::XML_ENTITY_LOGIN . self::XML_FOOTER;
+        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId); 
 
-        $xml = str_replace("{1%}", $userId, $xml);
-        $xml = str_replace("{2%}", $companyId, $xml);
-        $xml = str_replace("{3%}", $password, $xml);
-        $xml = str_replace("{4%}", $senderId, $xml);
-        $xml = str_replace("{5%}", $senderPassword, $xml);
-        $xml = str_replace("{%clientid%}", $clientId, $xml);
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
         self::validateConnection($response);
