@@ -1,43 +1,15 @@
 <?
-/**
- * Copyright (c) 2013, Intacct OpenSource Initiative
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
- * following conditions are met:
- *
- * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
- * disclaimer in the documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * OVERVIEW
- * The general pattern for using this SDK is to first create an instance of api_session and call either
- * connectCredentials or connectSessionId to start an active session with the Intacct Web Services gateway.
- * You will then pass the api_session as an argument in the api_post class methods.  intacctws-php handles all
- * XML serialization and de-serialization and HTTPS transport.
- */
-
 include_once('api_util.php');
 include_once('api_viewFilter.php');
 include_once('api_viewFilters.php');
 include_once('api_returnFormat.php');
 include_once('api_objDef.php');
 
-/**
- * Class api_post
- */
 class api_post {
 
     private static $lastRequest;
     private static $lastResponse;
+    private static $dryRun;
 
     const DEFAULT_PAGESIZE = 1000;
     const DEFAULT_MAXRETURN = 100000;
@@ -81,7 +53,7 @@ class api_post {
 
         if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
 
-        // Convert the record into an xml structure                                                                                 
+        // Convert the record into an xml structure
         $createXml = "<create>";
         $node = "";
         foreach($records as $record) {
@@ -112,7 +84,7 @@ class api_post {
     public static function update($records, api_session $session) {
         if (count($records) > 100) throw new Exception("Attempting to update more than 100 records.");
 
-        // convert the $records array into an xml structure                                                                          
+        // convert the $records array into an xml structure
         $updateXml = "<update>";
         $node = '';
         foreach($records as $record) {
@@ -236,6 +208,7 @@ class api_post {
      * @param String $function for 2.1 function (create_sotransaction, etc)
      * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
      * @param api_session $session  an api_session instance with a valid connection
+     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "3.0"
      * @return String the XML response from Intacct
      */
     public static function call21Method($function, $phpObj, api_session $session) {
@@ -333,35 +306,69 @@ class api_post {
      * @return mixed either string or array of objects depending on returnFormat argument
      */
     public static function readByQuery($object, $query, $fields, api_session $session, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ) {
+
+        $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
+
+        if ($returnFormat == api_returnFormat::PHPOBJ) {
+            $returnFormatArg = api_returnFormat::CSV;
+        }
+        else {
+            $returnFormatArg = $returnFormat;
+        }
+
         // TODO: Implement returnFormat.  Today we only support PHPOBJ
         $query = HTMLSpecialChars($query);
-        $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>csv</returnFormat>";
-        if ($maxRecords < 100) {
-            $readXml .= "<pagesize>$maxRecords</pagesize>";
-        }
+
+        $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>$returnFormatArg</returnFormat>";
+        $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</readByQuery>";
-        $objCsv = api_post::post($readXml,$session);
-        api_post::validateReadResults($objCsv);
-        $objAry = api_util::csvToPhp($objCsv);
-        $count = count($objAry);
-        while(count($objAry) >= 100 && $count <= $maxRecords) {
+
+        $response = api_post::post($readXml,$session);
+        api_post::validateReadResults($response);
+
+
+        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
+        $$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
+
+        $totalcount = $thiscount;
+
+        // we have no idea if there are more if CSV is returned, so just check
+        // if the last count returned was  $pageSize
+        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
-                $objCsv = api_post::post($readXml, $session);
-                api_post::validateReadResults($objCsv);
-                $objPage = api_util::csvToPhp($objCsv);
-                if (!is_array($objPage) || count($objPage) == 0) break;
-                foreach($objPage as $objRec) {
-                    $objAry[] = $objRec;
+                $response = api_post::post($readXml, $session);
+                api_post::validateReadResults($response);
+                $page = self::processReadResults($response, $returnFormat, $pageCount);
+                $totalcount += $pageCount;
+                $thiscount = $pageCount;
+
+                switch($returnFormat) {
+                    case api_returnFormat::PHPOBJ:
+                        foreach($page as $objRec) {
+                            $phpobj[] = $objRec;
+                        }
+                    break;
+                    case api_returnFormat::CSV:
+                        $page = explode("\n", $page);
+                        array_shift($page);
+                        $csv .= implode($page, "\n");
+                    break;
+                    case api_returnFormat::XML:
+                        $xml .= $page;
+                    break;
+                    default:
+                        throw new Exception("Invalid return format: " . $returnFormat);
+                    break;
                 }
-                $count += count($objPage); // could just do a count of objAry, but this performs better                              
+
             }
             catch (Exception $ex) {
-                // we've probably exceeded the limit                                                                                 
+                // we've probably exceeded the limit
                 break;
             }
         }
-        return $objAry;
+        return $$returnFormat;
     }
 
     /**
@@ -383,13 +390,13 @@ class api_post {
         //return $objAry;
     }
 
-    /**                                                                                                                              
-     * Read an object by its name field (vid for standard objects)                                                                   
-     * @param String $object object type                                                                                                
-     * @param String $name comma separated list of names.                                                                               
-     * @param String $fields comma separated list of fields.                            
+    /**
+     * Read an object by its name field (vid for standard objects)
+     * @param String $object object type
+     * @param String $name comma separated list of names.
+     * @param String $fields comma separated list of fields.
      * @param api_session $session  instance of api_session object.
-     * @return Array of objects.  If only one name is passed, the fields will be directly accessible.                                
+     * @return Array of objects.  If only one name is passed, the fields will be directly accessible.
      */
     public static function readByName($object, $name, $fields, api_session $session) {
         $name = HTMLSpecialChars($name);
@@ -422,17 +429,17 @@ class api_post {
         return $objAry;
     }
 
-    /**                                                                                                                              
-     * WARNING: This method will attempt to delete all records of a given object type                                                
-     * Deletes first 10000 by default                                                                                                
-     * @param String $object object type                                                                                                
+    /**
+     * WARNING: This method will attempt to delete all records of a given object type
+     * Deletes first 10000 by default
+     * @param String $object object type
      * @param api_session $session instance of api_session object.
-     * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000                                              
-     * @return Integer count of records deleted                                                                                      
+     * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000
+     * @return Integer count of records deleted
      */
     public static function deleteAll($object, api_session $session, $max=10000) {
 
-        // read all the record ids for the given object                                                                              
+        // read all the record ids for the given object
         $ids = api_post::readByQuery($object, "id > 0", "id", $session, $max);
 
         if (!count($ids) > 0) {
@@ -473,27 +480,30 @@ class api_post {
         $senderId = $session->senderId;
         $senderPassword = $session->senderPassword;
 
+        $transaction = ( $session->transaction ) ? 'true' : 'false' ;
+
+        /* 
         $templateHead =
-"<?xml version=\"1.0\" encoding=\"UTF-8\"?>                                                                                          
-<request>                                                                                                                            
-    <control>                                                                                                                        
-        <senderid>{2%}</senderid>                                                                                                    
-        <password>{3%}</password>                                        
+"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<request>
+    <control>
+        <senderid>{2%}</senderid>
+        <password>{3%}</password>
         <controlid>foobar</controlid>
-        <uniqueid>false</uniqueid>                                                                                                   
-        <dtdversion>{4%}</dtdversion>                                                                                                 
-    </control>                                                                                                                       
-    <operation>                                                                                                                      
-        <authentication>                                                                                                             
-            <sessionid>{1%}</sessionid>                                                                                              
-        </authentication>                                                                                                            
-        <content>                                                                                                                    
+        <uniqueid>false</uniqueid>
+        <dtdversion>{4%}</dtdversion>
+    </control>
+    <operation transaction='{5%}'>
+        <authentication>
+            <sessionid>{1%}</sessionid>
+        </authentication>
+        <content>
             <function controlid=\"foobar\">";
 
         $templateFoot =
-            "</function>                                                                                                             
-        </content>                                                                                                                   
-    </operation>                                                                                                                     
+            "</function>
+        </content>
+    </operation>
 </request>";
 
         $xml = $templateHead . $xml . $templateFoot;
@@ -501,6 +511,41 @@ class api_post {
         $xml = str_replace("{2%}", $senderId, $xml);
         $xml = str_replace("{3%}", $senderPassword, $xml);
         $xml = str_replace("{4%}", $dtdVersion, $xml);
+        $xml = str_replace("{5%}", $transaction, $xml);
+
+        */
+
+        $templateHead =
+"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<request>
+    <control>
+        <senderid>{$senderId}</senderid>
+        <password>{$senderPassword}</password>
+        <controlid>foobar</controlid>
+        <uniqueid>false</uniqueid>
+        <dtdversion>{$dtdVersion}</dtdversion>
+    </control>
+    <operation transaction='{$transaction}'>
+        <authentication>
+            <sessionid>{$sessionId}</sessionid>
+        </authentication>
+        <content>
+            <function controlid=\"foobar\">";
+
+        $templateFoot =
+            "</function>
+        </content>
+    </operation>
+</request>";
+
+
+        $xml = $templateHead . $xml . $templateFoot;
+
+        if (self::$dryRun == true) {
+            self::$lastRequest = $xml;
+            return;
+        }
+
 
         $count = 0; // retry five times on too many operations
         $res = "";
@@ -584,8 +629,8 @@ class api_post {
             $error = $simpleXml->operation->errormessage->error[0];
             throw new Exception("[ERROR: " . $error->errorno . "] " . $error->description2);
         }
-        // if we didn't get an operation, the request failed and we should raise an exception                                         
-        // with the error details                                                                                                    
+        // if we didn't get an operation, the request failed and we should raise an exception
+        // with the error details
         // did the method invocation fail?
         if (!isset($simpleXml->operation)) {
 
@@ -614,17 +659,27 @@ class api_post {
             throw new Exception("Invalid XML response: \n " . var_export($response, true));
         }
 
-        // check to see if there's an error in the response                                                                          
+        $objects = array();
+        // check to see if there's an error in the response
         $status = $simpleXml->operation->result->status;
         if ($status != "success") {
-            //find the problem and raise an exception                                                                                
+            //find the problem and raise an exception
             $error = $simpleXml->operation->result->errormessage;
             throw new Exception("[Error] " . api_util::xmlErrorToString($error));
         }
 
         $updates = array();
+
         foreach($simpleXml->operation->result->data->{$objectName} as $record) {
-            $updates[] = (string)$record->id;
+            if ($record->id) {
+                $updates[] = (string)$record->id;
+            }
+            else if ($record->RECORDNO) {
+                $updates[] = (string)$record->RECORDNO;
+            }
+            else {
+                $updates[] = 'Record updated did not have id or RECORDNO';
+            }
         }
 
         return $updates;
@@ -723,4 +778,10 @@ class api_post {
     public static function getLastResponse() {
       return self::$lastResponse;
     }
+
+    public static function setDryRun($tf=true)
+    {
+        self::$dryRun = $tf;
+    }
+    
 }
