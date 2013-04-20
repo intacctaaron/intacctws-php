@@ -130,13 +130,16 @@ class api_util {
     public static function csvToPhp($csv) {
 
         $fp = fopen('php://temp', 'r+');
-        fwrite($fp, $csv);
+        fwrite($fp, trim($csv));
 
         rewind($fp);
 
         $table = array();
         // get the header row                                                                                                        
         $header = fgetcsv($fp, 10000, ',','"');
+        if (is_null($header) || is_null($header[0])) {
+            throw new exception ("Unable to determine header.  Is there garbage in the file?");
+        }
 
         // get the rows                                                                                                              
         while (($data = fgetcsv($fp, 10000, ',','"')) !== false) {

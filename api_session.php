@@ -94,7 +94,7 @@ class api_session {
         $responseObj = simplexml_load_string($response);
 
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
-	$this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
         $this->companyId = $companyId;
         $this->userId = $userId;
         $this->senderId = $senderId;
@@ -126,7 +126,7 @@ class api_session {
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
         $this->companyId = (string)$responseObj->operation->authentication->companyid;
         $this->userId = (string)$responseObj->operation->authentication->userid;
-	$this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
 

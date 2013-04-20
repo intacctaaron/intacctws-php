@@ -29,6 +29,7 @@ include_once('api_util.php');
 include_once('api_viewFilter.php');
 include_once('api_viewFilters.php');
 include_once('api_returnFormat.php');
+include_once('api_objDef.php');
 
 /**
  * Class api_post
@@ -254,7 +255,7 @@ class api_post {
      * @throws Exception
      * @return Mixed Depends on the return format argument.  Returns a string unless phpobj is the return format in which case returns an array
      */
-    public static function readView($viewName, api_session $session, api_viewFilters $filterObj=NULL, $maxRecords = self::DEFAULT_MAXRETURN, $returnFormat = api_returnFormat::PHPOBJ) {
+    public static function readView($viewName, api_session $session, api_viewFilters $filterObj=null, $maxRecords = self::DEFAULT_MAXRETURN, $returnFormat = api_returnFormat::PHPOBJ) {
 
         $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
 
@@ -269,7 +270,7 @@ class api_post {
 
         // process the filters array
         $filtersXmlStr = '';
-        if ($filterObj !== NULL) {
+        if ($filterObj !== null) {
             $filters = $filterObj->filters;
             $condition = $filterObj->operator;
             $filtersXml = array();
@@ -288,7 +289,7 @@ class api_post {
         $$returnFormat = self::processReadResults($response, $returnFormat, $count);
 
         if ($count == $pageSize && $count < $maxRecords) {
-            while (TRUE) {
+            while (true) {
                 $readXml = "<readMore><view>$viewName</view></readMore>";
                 try {
                     $response = api_post::post($readXml, $session);
@@ -365,15 +366,21 @@ class api_post {
 
     /**
      * Inspect an object to get a list of its fields
-     * @param String $object The integration name of the object.  Pass '*' to get a complete list of objects
-     * @param String $detail Whether or not to return data type information for the fields.
+     *
+     * @param String      $object  The integration name of the object.  Pass '*' to get a complete list of objects
+     * @param bool|String $detail  Whether or not to return data type information for the fields.
      * @param api_session $session Instance of an api_session object with a valid connection
+     *
      * @return String the raw xml returned by Intacct
      */
     public static function inspect($object, $detail, api_session $session) {
-      $inspectXML = "<inspect detail='$detail'><object>$object</object></inspect>";
-      $objAry = api_post::post($inspectXML, $session);
-      return $objAry;
+        $inspectXML = "<inspect detail='$detail'><object>$object</object></inspect>";
+        $objXml = api_post::post($inspectXML, $session);
+        $simpleXml = simplexml_load_string($objXml);
+        $objDefXml = $simpleXml->operation->result->data->Type;
+        $objDef = new api_objDef($objDefXml);
+        return $objDef;
+        //return $objAry;
     }
 
     /**                                                                                                                              
@@ -564,13 +571,13 @@ class api_post {
     private static function validateResponse($response) {
 
         // don't send errors to the log
-        libxml_use_internal_errors(TRUE);
+        libxml_use_internal_errors(true);
         // the client asked for a non-xml response (csv or json)
         $simpleXml = @simplexml_load_string($response);
         if ($simpleXml === false) {
             return;
         }
-        libxml_use_internal_errors(FALSE);
+        libxml_use_internal_errors(false);
 
         // look for a failure in the operation, but not the result
         if (isset($simpleXml->operation->errormessage)) {
@@ -631,9 +638,9 @@ class api_post {
     private static function validateReadResults($response) {
 
         // don't send warnings to the error log
-        libxml_use_internal_errors(TRUE);
+        libxml_use_internal_errors(true);
         $simpleXml = simplexml_load_string($response);
-        libxml_use_internal_errors(FALSE);
+        libxml_use_internal_errors(false);
 
         if ($simpleXml === false) {
             return; // the result is csv or json, so there's no error
