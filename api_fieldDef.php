@@ -26,7 +26,7 @@ class api_fieldDef {
         $this->externalDataName = (string)$simpleXml->externalDataName;
         $this->isRequired = (strtolower((string)$simpleXml->isRequired) == 'true') ? true : false;
         $this->isReadOnly = (strtolower((string)$simpleXml->isReadOnly) == 'true') ? true : false;
-        $this->maxLength = (int)$simpleXml->maxLengt;
+        $this->maxLength = (int)$simpleXml->maxLength;
         $this->DisplayLabel = (string)$simpleXml->DisplayLabel;
         $this->Description = (string)$simpleXml->Description;
         $this->id = (string)$simpleXml->id;
