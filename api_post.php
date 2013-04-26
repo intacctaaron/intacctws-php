@@ -324,7 +324,7 @@ class api_post {
         $readXml .= "</readByQuery>";
 
         $response = api_post::post($readXml,$session);
-        if ($returnFormatArg == api_returnFormat::CSV && empty($response) ) {
+        if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
         }
