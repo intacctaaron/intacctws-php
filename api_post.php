@@ -217,6 +217,35 @@ class api_post {
     }
 
     /**
+     * Run any Intacct API method not directly implemented in this class.  You must pass
+     * valid XML for the method you wish to invoke.
+     * @param Array $phpObj an array for all the functions . 
+     * @param api_session $session  an api_session instance with a valid connection
+     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
+     * @return String the XML response from Intacct
+     */
+    public static function sendFunctions($phpObj, api_session $session, $dtdVersion="2.1") {
+        $xml = api_util::phpToXml('content',array($phpObj));
+        return api_post::post($xml, $session,$dtdVersion, true);
+    }
+
+    /**
+     * Run any Intacct API method not directly implemented in this class.  You must pass
+     * valid XML for the method you wish to invoke.
+     * @param String $function for 2.1 function (create_sotransaction, etc)
+     * @param String $key The attribute key
+     * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
+     * @param api_session $session  an api_session instance with a valid connection
+     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "3.0"
+     * @return String the XML response from Intacct
+     */
+    public static function call21UpdateMethod($function, $key, $phpObj, api_session $session) {
+        $xml = api_util::phpToXml($function,array($phpObj));
+        $xml = str_replace("<$function", "<$function key=\"$key\"", $xml);
+        return api_post::post($xml, $session,"2.1");
+    }
+
+    /**
      * Return the records defined in a platform view.  Views define an object, a collection of field, sorting, and filtering.  You may pass additional filters
      * via the api_viewFilters object
      * @param String $viewName either the textual name of the view or the original id of the view (object#originalid).  Note view names are not guaranteed to be
@@ -324,7 +353,7 @@ class api_post {
         $readXml .= "</readByQuery>";
 
         $response = api_post::post($readXml,$session);
-        if ($returnFormatArg == api_returnFormat::CSV && empty($response) ) {
+        if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
         }
@@ -477,7 +506,7 @@ class api_post {
      * @throws Exception
      * @return String the XML response document
      */
-    private static function post($xml, api_session $session, $dtdVersion="3.0") {
+    private static function post($xml, api_session $session, $dtdVersion="3.0",$multiFunc=false) {
 
         $sessionId = $session->sessionId;
         $endPoint = $session->endPoint;
@@ -532,18 +561,27 @@ class api_post {
     <operation transaction='{$transaction}'>
         <authentication>
             <sessionid>{$sessionId}</sessionid>
-        </authentication>
-        <content>
+        </authentication>";
+
+        $contentHead =
+        "<content>
             <function controlid=\"foobar\">";
 
-        $templateFoot =
+        $contentFoot = 
             "</function>
-        </content>
-    </operation>
+        </content>";
+
+        $templateFoot =
+    "</operation>
 </request>";
 
 
-        $xml = $templateHead . $xml . $templateFoot;
+        if ($multiFunc) {
+            $xml = $templateHead . $xml . $templateFoot;
+        }
+        else {
+            $xml = $templateHead . $contentHead . $xml . $contentFoot . $templateFoot;
+        }
 
         if (self::$dryRun == true) {
             self::$lastRequest = $xml;
@@ -610,6 +648,50 @@ class api_post {
         self::$lastResponse = $response;
         return $response;
 
+    }
+
+    /**
+     * Validate the response from Intacct and look for request level errors
+     * @param String $response The XML response document
+     * @throws Exception
+     */
+    public static function findResponseErrors($response) {
+
+        $errorArray = array();
+
+        // don't send errors to the log
+        libxml_use_internal_errors(true);
+        // the client asked for a non-xml response (csv or json)
+        $simpleXml = @simplexml_load_string($response);
+
+        if ($simpleXml === false) {
+            return;
+        }
+        libxml_use_internal_errors(false);
+
+        // look for a failure in the operation, but not the result
+        if (isset($simpleXml->operation->errormessage)) {
+            $error = $simpleXml->operation->errormessage->error[0];
+            $errorArray['operation'] = array ( 'errorno' => $error->errorno, 'desc' => $error->description2);
+        }
+
+        // if we didn't get an operation, the request failed and we should raise an exception
+        // with the error details
+        // did the method invocation fail?
+        if (!isset($simpleXml->operation)) {
+            if (isset($simpleXml->errormessage)) {
+                $errorArray['other'] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->errormessage));
+            }
+        }
+        else {
+            $results = $simpleXml->xpath('/response/operation/result');
+            foreach ($results as $result) {
+                if ((string)$result->status == "failure") {
+                    $errorArray['results'][] = array ( 'controlid' => (string)$result->controlid, 'desc' =>  api_util::xmlErrorToString($result->errormessage));
+                }
+            }
+        }
+        return $errorArray;
     }
 
     /**

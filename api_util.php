@@ -107,14 +107,44 @@ class api_util {
             $xml = "<" . $key . ">";
         }
         foreach($values as $node => $value) {
+            $attrString = "";
+            $_xml = "";
             if (is_array($value)) {
                 if (is_numeric($node)) {
                     $node = $key;
                 }
-                $xml .= self::phpToXml($node,$value) ;
+                // collect any attributes
+                foreach ($value as $_k => $v) {
+                    if (!is_array($v)) {
+                        if (substr($_k,0,1) == '@') {
+                            $pad = ($attrString == "") ? " " : "";
+                            $aname = substr($_k,1);
+                            $aval  = $v;
+                            //$attrs = explode(':', substr($v,1));
+                            //$attrString .= $pad . $attrs[0].'="'.$attrs[1].'" ';
+                            $attrString .= $pad . $aname.'="'.$aval.'" ';
+                            unset($value[$_k]);
+                        }
+                    }
+                }
+
+                $firstKey = array_shift(array_keys($value));
+                if (is_array($value[$firstKey]) || count($value) > 1 ) {
+                    $_xml = self::phpToXml($node,$value) ; 
+                }
+                else {
+                    $v = $value[$firstKey];
+                    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
+                }
+
+                if ($attrString != "") {
+                    $_xml = preg_replace("/<$node/","<$node $attrString", $_xml);
+                }
+
+                $xml .= $_xml;
             }
             else {
-                $xml .= "<" . $node . ">" . htmlspecialchars($value) . "</" . $node . ">";
+                $xml .= "<" . $node . $attrString . ">" . htmlspecialchars($value) . "</" . $node . ">";
             }
         }
         if (!is_numeric(array_shift(array_keys($values)))) {
