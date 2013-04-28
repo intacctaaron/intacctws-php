@@ -435,6 +435,11 @@ class api_post {
         $name = HTMLSpecialChars($name);
         $readXml = "<readByName><object>$object</object><keys>$name</keys><fields>$fields</fields><returnFormat>csv</returnFormat></readByName>";
         $objCsv = api_post::post($readXml,$session);
+
+        if (trim($objCsv) == "") {
+            // csv with no records will have no response, so avoid the error from validate and just return
+            return '';
+        }
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
         if (count(explode(",",$name)) > 1) {
