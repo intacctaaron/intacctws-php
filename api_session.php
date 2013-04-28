@@ -86,9 +86,9 @@ class api_session {
      * @param String $senderPassword Your Intacct Partner password
      * @throws Exception this method returns no value, but will raise any connection exceptions
      */
-    public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword) {
+    public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword, $entityType=null, $entityId=null) {
 
-        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword); 
+        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId); 
 
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
