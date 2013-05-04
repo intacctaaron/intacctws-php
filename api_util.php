@@ -138,7 +138,7 @@ class api_util {
                 }
 
                 if ($attrString != "") {
-                    $_xml = preg_replace("/<$node/","<$node $attrString", $_xml);
+                    $_xml = preg_replace("/^<$node/","<$node $attrString", $_xml);
                 }
 
                 $xml .= $_xml;
