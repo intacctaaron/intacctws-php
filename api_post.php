@@ -232,6 +232,46 @@ class api_post {
     /**
      * Run any Intacct API method not directly implemented in this class.  You must pass
      * valid XML for the method you wish to invoke.
+     * @param string $object the object to list
+     * @param Array $filters filters in a phpObj that will convert to get_list filters in phpToXml
+     * @param api_session $session  an api_session instance with a valid connection
+     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
+     * @return String the XML response from Intacct
+     */
+    public static function get_list($object, $filter, $sorts, $fields, api_session $session, $dtdVersion="2.1") {
+        $get_list = array();
+        $get_list['@object'] = $object;
+        if ($filter != null) {
+            $get_list['filter'] = $filter;
+        }
+        if ($sorts != null) {
+            $get_list['sorts'] = $sorts;
+        }
+        if ($fields != null) {
+            $get_list['fields'] = $fields;
+        }
+
+        $func['function'][] = array (
+            '@controlid' => 'control1',
+            'get_list' => $get_list
+        );
+
+        $xml = api_util::phpToXml('content',array($func));
+        $res = api_post::post($xml, $session,$dtdVersion, true); 
+        $ret = api_post::processListResults($res, api_returnFormat::PHPOBJ, $count);
+        $toReturn = $ret[$object];
+        if (is_array($toReturn)) {
+            $keys = array_keys($toReturn);
+            if (!is_numeric($keys[0])) {
+                $toReturn = array ($toReturn);
+            }
+        }
+        return $toReturn;
+    }
+
+    /**
+     * Run any Intacct API method not directly implemented in this class.  You must pass
+     * valid XML for the method you wish to invoke.
      * @param String $function for 2.1 function (create_sotransaction, etc)
      * @param String $key The attribute key
      * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
@@ -435,6 +475,11 @@ class api_post {
         $name = HTMLSpecialChars($name);
         $readXml = "<readByName><object>$object</object><keys>$name</keys><fields>$fields</fields><returnFormat>csv</returnFormat></readByName>";
         $objCsv = api_post::post($readXml,$session);
+
+        if (trim($objCsv) == "") {
+            // csv with no records will have no response, so avoid the error from validate and just return
+            return '';
+        }
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
         if (count(explode(",",$name)) > 1) {
@@ -672,7 +717,7 @@ class api_post {
         // look for a failure in the operation, but not the result
         if (isset($simpleXml->operation->errormessage)) {
             $error = $simpleXml->operation->errormessage->error[0];
-            $errorArray['operation'] = array ( 'errorno' => $error->errorno, 'desc' => $error->description2);
+            $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->operation->errormessage));
         }
 
         // if we didn't get an operation, the request failed and we should raise an exception
@@ -680,14 +725,14 @@ class api_post {
         // did the method invocation fail?
         if (!isset($simpleXml->operation)) {
             if (isset($simpleXml->errormessage)) {
-                $errorArray['other'] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->errormessage));
+                $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
         else {
             $results = $simpleXml->xpath('/response/operation/result');
             foreach ($results as $result) {
                 if ((string)$result->status == "failure") {
-                    $errorArray['results'][] = array ( 'controlid' => (string)$result->controlid, 'desc' =>  api_util::xmlErrorToString($result->errormessage));
+                    $errorArray[] = array ( 'controlid' => (string)$result->controlid, 'desc' =>  api_util::xmlErrorToString($result->errormessage));
                 }
             }
         }
@@ -803,6 +848,34 @@ class api_post {
             return; // no error found.
         }
 
+    }
+
+    /**
+     * Process results from any of the get_list method and convert into the appropriate structure
+     * @param String $response result from post to Intacct Web Services
+     * @param string $returnFormat valid returnFormat value
+     * @param Integer $count by reference count of records returned
+     * @throws Exception
+     * @return Mixed string or object depending on return format
+     */
+    private static function processListResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+
+        $xml = simplexml_load_string($response);
+
+        $success = $xml->operation->result->status;
+        if ($success != "success") {
+            throw new Exception("Get List failed");
+            return;
+        }
+        
+        if ($returnFormat != api_returnFormat::PHPOBJ) {
+            throw new Exception("Only PHPOBJ is supported for returnFormat currently.");
+            return;
+        }
+
+        $json = json_encode($xml->operation->result->data);
+        $array = json_decode($json,TRUE);
+        return $array;
     }
 
     /**
