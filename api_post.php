@@ -128,6 +128,9 @@ class api_post {
 
         $where = "$nameField in ('" . join("','", $keys) . "')";
         $existingRecords = api_post::readByQuery($object, $where, "$nameField,$keyField", $session);
+        if (!is_array($existingRecords)) {
+            $existingRecords = array();
+        }
         $toUpdate = array(); $toCreate = array();
         if (count($existingRecords) == 0) {
             if ($readOnlyName == true) {
