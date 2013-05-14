@@ -211,7 +211,6 @@ class api_post {
      * @param String $function for 2.1 function (create_sotransaction, etc)
      * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
      * @param api_session $session  an api_session instance with a valid connection
-     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "3.0"
      * @return String the XML response from Intacct
      */
     public static function call21Method($function, $phpObj, api_session $session) {
@@ -524,6 +523,43 @@ class api_post {
         $ids = api_post::readByQuery($object, "id > 0", "id", $session, $max);
 
         if (!count($ids) > 0) {
+            return 0;
+        }
+
+        $count = 0;
+        $delIds = array();
+        foreach($ids as $rec) {
+            $delIds[] = $rec['id'];
+            if (count($delIds) == 100) {
+                api_post::delete($object, implode(",", $delIds), $session);
+                $count += 100;
+                $delIds = array();
+            }
+        }
+
+        if (count($delIds) > 0) {
+            api_post::delete($object, implode(",", $delIds), $session);
+            $count += count($delIds);
+        }
+
+        return $count;
+    }
+
+    /**
+     * WARNING: This method will attempt to delete all records of a given object type given a query
+     * Deletes first 10000 by default
+     * @param String $object object type
+     * @param String $query the query string to execute.  Use SQL operators
+     * @param api_session $session instance of api_session object.
+     * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000
+     * @return Integer count of records deleted
+     */
+    public static function deleteByQuery($object, $query, api_session $session, $max=10000) {
+
+        // read all the record ids for the given object
+        $ids = api_post::readByQuery($object, "id > 0 and $query", "id", $session, $max);
+
+        if ((!is_array($ids) && trim($ids) == '') || !count($ids) > 0) {
             return 0;
         }
 
@@ -861,7 +897,7 @@ class api_post {
      * @throws Exception
      * @return Mixed string or object depending on return format
      */
-    private static function processListResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+    public static function processListResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
 
         $xml = simplexml_load_string($response);
 
