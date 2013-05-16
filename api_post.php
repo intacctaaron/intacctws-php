@@ -808,12 +808,15 @@ class api_post {
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
-        else if ($simpleXml->operation->result->status == "failure") {
-            throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->operation->result->errormessage));
+        else { 
+            $results = $simpleXml->operation->result;
+            foreach ($results as $res) {
+                if ($res->status == "failure") {
+                    throw new Exception("[Error] " . api_util::xmlErrorToString($res->errormessage));
+                }
+            }
         }
-        else {
-            return;
-        }
+        return;
     }
 
     /**
