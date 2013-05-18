@@ -1,11 +1,43 @@
-<?
-include_once('api_util.php');
-include_once('api_viewFilter.php');
-include_once('api_viewFilters.php');
-include_once('api_returnFormat.php');
-include_once('api_objDef.php');
+<?php
+/**
+ * Copyright (c) 2013, Intacct OpenSource Initiative
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ * following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
+ * disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * OVERVIEW
+ * The general pattern for using this SDK is to first create an instance of api_session and call either
+ * connectCredentials or connectSessionId to start an active session with the Intacct Web Services gateway.
+ * You will then pass the api_session as an argument in the api_post class methods.  intacctws-php handles all
+ * XML serialization and de-serialization and HTTPS transport.
+ */
 
-class api_post {
+require_once 'api_util.php';
+require_once 'api_viewFilter.php';
+require_once 'api_viewFilters.php';
+require_once 'api_returnFormat.php';
+require_once 'api_objDef.php';
+
+/**
+ * Class api_post
+ *
+ * Collection of static methods for interacting with the Intacct Web Services.
+ */
+class api_post
+{
 
     private static $lastRequest;
     private static $lastResponse;
@@ -17,22 +49,24 @@ class api_post {
     /**
      * Read one or more records by their key.  For platform objects, the key is the 'id' field.
      * For standard objects, the key is the 'recordno' field.  Results are returned as a php structured array
-     * @param String $object the integration name for the object
-     * @param String $id a comma separated list of keys for each record you wish to read
-     * @param String $fields a comma separated list of fields to return
+     *
+     * @param String              $object  the integration name for the object
+     * @param String              $id      a comma separated list of keys for each record you wish to read
+     * @param String              $fields  a comma separated list of fields to return
      * @param \api_session|Object $session an instance of the php_session object
+     *
      * @return Array of records
      */
-    public static function read($object, $id, $fields, api_session $session) {
+    public static function read($object, $id, $fields, api_session $session)
+    {
 
         $readXml = "<read><object>$object</object><keys>$id</keys><fields>$fields</fields><returnFormat>csv</returnFormat></read>";
         $objCsv = api_post::post($readXml, $session);
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
-        if (count(explode(",",$id)) > 1) {
+        if (count(explode(",", $id)) > 1) {
             return $objAry;
-        }
-        else {
+        } else {
             return $objAry[0];
         }
     }
@@ -40,23 +74,26 @@ class api_post {
     /**
      * Create one or more records.  Object types can be mixed and can be either standard or custom.
      * Check the developer documentation to see which standard objects are supported in this method
-     * @param Array $records is an array of records to create.  Follow the pattern
+     *
+     * @param Array       $records is an array of records to create.  Follow the pattern
      * $records = array(array('myobjecttype' => array('field1' => 'value',
      *                                                'field2' => 'value')),
      *                  array('myotherobjecttype' => array('field1' => 'value',
      *                                                     'field2' => 'value')));
      * @param api_session $session instance of api_session object with valid connection
+     *
      * @throws Exception
      * @return Array array of keys to the objects created
      */
-    public static function create($records, api_session $session) {
+    public static function create($records, api_session $session)
+    {
 
         if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
 
         // Convert the record into an xml structure
         $createXml = "<create>";
         $node = "";
-        foreach($records as $record) {
+        foreach ($records as $record) {
             $nodeAry = array_keys($record);
             $node = $nodeAry[0];
             $objXml = api_util::phpToXml($node, $record[$node]);
@@ -72,22 +109,25 @@ class api_post {
     /**
      * Update one or more records.  Object types can be mixed and can be either standard or custom.
      * Check the developer documentation to see which standard objects are supported in this method
-     * @param Array $records an array of records to update.  Follow the pattern
+     *
+     * @param Array       $records an array of records to update.  Follow the pattern
      * $records = array(array('mycustomobjecttype' => array('id' => 112233, // you must pass the id value
      *                                                      'updatefield' => 'updateValue')),
      *                  array('mystandardobjecttype' => array('recordno' => 555, // you must pass the recordno value for standard objects
      *                                                        'updatefield' => 'updateValue')));
-     * @param api_session $session
+     * @param api_session $session api_session object with a valid connection
+     *
      * @throws Exception
      * @return array An array of 'ids' updated in the method invocation
      */
-    public static function update($records, api_session $session) {
+    public static function update($records, api_session $session)
+    {
         if (count($records) > 100) throw new Exception("Attempting to update more than 100 records.");
 
         // convert the $records array into an xml structure
         $updateXml = "<update>";
         $node = '';
-        foreach($records as $record) {
+        foreach ($records as $record) {
             $nodeAry = array_keys($record);
             $node = $nodeAry[0];
             $objXml = api_util::phpToXml($node, $record[$node]);
@@ -183,12 +223,16 @@ class api_post {
 
     /**
      * Delete one or more records
-     * @param String $object integration code of object type to delete
-     * @param String $ids String a comma separated list of keys.  use 'id' values for custom
+     *
+     * @param String      $object  integration code of object type to delete
+     * @param String      $ids     String a comma separated list of keys.  use 'id' values for custom
      * objects and 'recordno' values for standard objects
      * @param api_session $session instance of api_session object
+     *
+     * @return null
      */
-    public static function delete($object, $ids, api_session $session) {
+    public static function delete($object, $ids, api_session $session)
+    {
         $deleteXml = "<delete><object>$object</object><keys>$ids</keys></delete>";
         api_post::post($deleteXml, $session);
     }
@@ -196,51 +240,64 @@ class api_post {
     /**
      * Run any Intacct API method not directly implemented in this class.  You must pass
      * valid XML for the method you wish to invoke.
-     * @param String $xml valid XML for the method you wish to invoke
-     * @param api_session $session an api_session instance with a valid connection
-     * @param string $dtdVersion Either "2.1" or "3.0" defaults to "3.0"
+     *
+     * @param String      $xml        valid XML for the method you wish to invoke
+     * @param api_session $session    an api_session instance with a valid connection
+     * @param string      $dtdVersion Either "2.1" or "3.0" defaults to "3.0"
+     *
      * @return String the XML response from Intacct
      */
-    public static function otherMethod($xml, api_session $session, $dtdVersion="3.0") {
-        return api_post::post($xml, $session,$dtdVersion);
+    public static function otherMethod($xml, api_session $session, $dtdVersion="3.0")
+    {
+        return api_post::post($xml, $session, $dtdVersion);
     }
 
     /**
      * Run any Intacct API method not directly implemented in this class.  You must pass
      * valid XML for the method you wish to invoke.
-     * @param String $function for 2.1 function (create_sotransaction, etc)
-     * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
+     *
+     * @param String      $function for 2.1 function (create_sotransaction, etc)
+     * @param Array       $phpObj   an array for the object.  Do not nest in another array() wrapper
      * @param api_session $session  an api_session instance with a valid connection
+     *
      * @return String the XML response from Intacct
      */
-    public static function call21Method($function, $phpObj, api_session $session) {
-        $xml = api_util::phpToXml($function,array($phpObj));
-        return api_post::post($xml, $session,"2.1");
+    public static function call21Method($function, $phpObj, api_session $session)
+    {
+        $xml = api_util::phpToXml($function, array($phpObj));
+        return api_post::post($xml, $session, "2.1");
     }
 
     /**
      * Run any Intacct API method not directly implemented in this class.  You must pass
      * valid XML for the method you wish to invoke.
-     * @param Array $phpObj an array for all the functions . 
-     * @param api_session $session  an api_session instance with a valid connection
-     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
+     *
+     * @param Array       $phpObj     an array for all the functions .
+     * @param api_session $session    an api_session instance with a valid connection
+     * @param string      $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
+     *
      * @return String the XML response from Intacct
      */
-    public static function sendFunctions($phpObj, api_session $session, $dtdVersion="2.1") {
-        $xml = api_util::phpToXml('content',array($phpObj));
-        return api_post::post($xml, $session,$dtdVersion, true);
+    public static function sendFunctions($phpObj, api_session $session, $dtdVersion="2.1")
+    {
+        $xml = api_util::phpToXml('content', array($phpObj));
+        return api_post::post($xml, $session, $dtdVersion, true);
     }
 
     /**
-     * Run any Intacct API method not directly implemented in this class.  You must pass
-     * valid XML for the method you wish to invoke.
-     * @param string $object the object to list
-     * @param Array $filters filters in a phpObj that will convert to get_list filters in phpToXml
-     * @param api_session $session  an api_session instance with a valid connection
-     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
+     * Get a list of standard objects by passing structured filters, sorts, and fields arguments.
+     *
+     * @param string      $object     the object to list
+     * @param Array       $filter     filters in a phpObj that will convert to get_list filters in phpToXml
+     * @param Array       $sorts      sorts in a phpObj that will convert to get_list sort in phpToXml
+     * @param Array       $fields     list of fields in a phpObj that will convert to get_list fields in phpToXml
+     * @param api_session $session    an api_session instance with a valid connection
+     * @param string      $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
+     *
      * @return String the XML response from Intacct
      */
-    public static function get_list($object, $filter, $sorts, $fields, api_session $session, $dtdVersion="2.1") {
+    public static function get_list($object, $filter, $sorts, $fields, api_session $session, $dtdVersion="2.1")
+    {
         $get_list = array();
         $get_list['@object'] = $object;
         if ($filter != null) {
@@ -258,8 +315,9 @@ class api_post {
             'get_list' => $get_list
         );
 
-        $xml = api_util::phpToXml('content',array($func));
-        $res = api_post::post($xml, $session,$dtdVersion, true); 
+        $xml = api_util::phpToXml('content', array($func));
+        $res = api_post::post($xml, $session, $dtdVersion, true);
+        $count = 0;
         $ret = api_post::processListResults($res, api_returnFormat::PHPOBJ, $count);
         $toReturn = $ret[$object];
         if (is_array($toReturn)) {
@@ -272,34 +330,41 @@ class api_post {
     }
 
     /**
-     * Run any Intacct API method not directly implemented in this class.  You must pass
-     * valid XML for the method you wish to invoke.
-     * @param String $function for 2.1 function (create_sotransaction, etc)
-     * @param String $key The attribute key
-     * @param Array $phpObj an array for the object.  Do not nest in another array() wrapper
+     * Handy wrapper for 2.1 update methods
+     *
+     * @param String      $function for 2.1 function (create_sotransaction, etc)
+     * @param String      $key      The attribute key
+     * @param Array       $phpObj   an array for the object.  Do not nest in another array() wrapper
      * @param api_session $session  an api_session instance with a valid connection
-     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "3.0"
+     *
      * @return String the XML response from Intacct
      */
-    public static function call21UpdateMethod($function, $key, $phpObj, api_session $session) {
-        $xml = api_util::phpToXml($function,array($phpObj));
+    public static function call21UpdateMethod($function, $key, $phpObj, api_session $session)
+    {
+        $xml = api_util::phpToXml($function, array($phpObj));
         $xml = str_replace("<$function", "<$function key=\"$key\"", $xml);
-        return api_post::post($xml, $session,"2.1");
+        return api_post::post($xml, $session, "2.1");
     }
 
     /**
-     * Return the records defined in a platform view.  Views define an object, a collection of field, sorting, and filtering.  You may pass additional filters
-     * via the api_viewFilters object
-     * @param String $viewName either the textual name of the view or the original id of the view (object#originalid).  Note view names are not guaranteed to be
-     * unique, so you are always safer referencing the original id
-     * @param api_session $session instance of the api session object
-     * @param api_viewFilters $filterObj Object instance of the api_viewFilters object
-     * @param int $maxRecords defaults to 100000
-     * @param string $returnFormat String defaults to phpobj.  Use one of the constants defined in api_returnFormat class
+     * Return the records defined in a platform view.  Views define an object, a collection of field, sorting,
+     * and filtering.  You may pass additional filters via the api_viewFilters object
+     *
+     * @param String          $viewName     either the textual name of the view or the original id of the view
+     * (object#originalid).  Note view names are not guaranteed to be unique, so you are always safer referencing the
+     * view using the notation[object]#[originalid].  Example: "CUSTOMER#123456@654321
+     * @param api_session     $session      instance of the api session object
+     * @param api_viewFilters $filterObj    Object instance of the api_viewFilters object
+     * @param int             $maxRecords   defaults to 100000
+     * @param string          $returnFormat String defaults to phpobj.  Use one of the constants defined in
+     * api_returnFormat class
+     *
      * @throws Exception
-     * @return Mixed Depends on the return format argument.  Returns a string unless phpobj is the return format in which case returns an array
+     * @return Mixed Depends on the return format argument.  Returns a string unless phpobj is the return format
+     * in which case returns an array
      */
-    public static function readView($viewName, api_session $session, api_viewFilters $filterObj=null, $maxRecords = self::DEFAULT_MAXRETURN, $returnFormat = api_returnFormat::PHPOBJ) {
+    public static function readView($viewName, api_session $session, api_viewFilters $filterObj=null, $maxRecords = self::DEFAULT_MAXRETURN, $returnFormat = api_returnFormat::PHPOBJ)
+    {
 
         $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
 
@@ -307,8 +372,7 @@ class api_post {
         api_returnFormat::validateReturnFormat($returnFormat);
         if ($returnFormat == api_returnFormat::PHPOBJ) {
             $returnFormatArg = api_returnFormat::CSV;
-        }
-        else {
+        } else {
             $returnFormatArg = $returnFormat;
         }
 
@@ -318,10 +382,10 @@ class api_post {
             $filters = $filterObj->filters;
             $condition = $filterObj->operator;
             $filtersXml = array();
-            foreach($filters as $filter) {
+            foreach ($filters as $filter) {
                 $filtersXml[] = "<filterExpression><field>{$filter->field}</field><operator>{$filter->operator}</operator><value>{$filter->value}</value></filterExpression>";
             }
-            $filtersXmlStr = "<filters><filterCondition>$condition</filterCondition>" . join("",$filtersXml) . "</filters>";
+            $filtersXmlStr = "<filters><filterCondition>$condition</filterCondition>" . join("", $filtersXml) . "</filters>";
         }
 
         $viewName = HTMLSpecialChars($viewName);
@@ -330,7 +394,7 @@ class api_post {
         $response = api_post::post($readXml, $session);
         api_post::validateReadResults($response);
         $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
-        $$returnFormat = self::processReadResults($response, $returnFormat, $count);
+        $$returnFormat = self::processReadResults($response, $count, $returnFormat);
 
         if ($count == $pageSize && $count < $maxRecords) {
             while (true) {
@@ -338,20 +402,19 @@ class api_post {
                 try {
                     $response = api_post::post($readXml, $session);
                     api_post::validateReadResults($response);
-                    $page = self::processReadResults($response, $returnFormat, $pageCount);
+                    $pageCount = 0;
+                    $page = self::processReadResults($response, $pageCount, $returnFormat);
                     $count += $pageCount;
                     if ($returnFormat == api_returnFormat::PHPOBJ) {
-                        foreach($page as $objRec) {
+                        foreach ($page as $objRec) {
                             $phpobj[] = $objRec;
                         }
-                    }
-                    elseif ($returnFormat == api_returnFormat::CSV) {
+                    } elseif ($returnFormat == api_returnFormat::CSV) {
                         // append all but the first row to the CSV file
                         $page = explode("\n", $page);
                         array_shift($page);
                         $csv .= implode($page, "\n");
-                    }
-                    elseif ($returnFormat == api_returnFormat::XML) {
+                    } elseif ($returnFormat == api_returnFormat::XML) {
                         // just add the xml string
                         $xml .= $page;
                     }
@@ -367,23 +430,25 @@ class api_post {
     }
 
     /**
-     * Read records using a query.  Specify the object you want to query and something like a "where" clause"
-     * @param String $object the object upon which to run the query
-     * @param String $query the query string to execute.  Use SQL operators
-     * @param String $fields A comma separated list of fields to return
-     * @param api_session $session An instance of the api_session object with a valid connection
-     * @param int $maxRecords number of records to return.  Defaults to 100000
-     * @param string $returnFormat defaults to php object.  Pass one of the valid constants from api_returnFormat class
+     * Read records using a query.  Specify the object you want to query and something like a "where" clause
+     *
+     * @param String      $object       the object upon which to run the query
+     * @param String      $query        the query string to execute.  Use SQL operators
+     * @param String      $fields       A comma separated list of fields to return
+     * @param api_session $session      An instance of the api_session object with a valid connection
+     * @param int         $maxRecords   number of records to return.  Defaults to 100000
+     * @param string      $returnFormat defaults to php object.  Pass one of the valid constants from api_returnFormat class
+     *
      * @return mixed either string or array of objects depending on returnFormat argument
      */
-    public static function readByQuery($object, $query, $fields, api_session $session, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ) {
+    public static function readByQuery($object, $query, $fields, api_session $session, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ)
+    {
 
         $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
 
         if ($returnFormat == api_returnFormat::PHPOBJ) {
             $returnFormatArg = api_returnFormat::CSV;
-        }
-        else {
+        } else {
             $returnFormatArg = $returnFormat;
         }
 
@@ -394,7 +459,7 @@ class api_post {
         $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</readByQuery>";
 
-        $response = api_post::post($readXml,$session);
+        $response = api_post::post($readXml, $session);
         if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
@@ -403,37 +468,37 @@ class api_post {
 
 
         $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
-        $$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
+        $$returnFormat = self::processReadResults($response, $thiscount, $returnFormat);
 
         $totalcount = $thiscount;
 
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
-        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+        while ($thiscount == $pageSize && $totalcount <= $maxRecords) {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
                 $response = api_post::post($readXml, $session);
                 api_post::validateReadResults($response);
-                $page = self::processReadResults($response, $returnFormat, $pageCount);
+                $page = self::processReadResults($response, $pageCount, $returnFormat);
                 $totalcount += $pageCount;
                 $thiscount = $pageCount;
 
                 switch($returnFormat) {
-                    case api_returnFormat::PHPOBJ:
-                        foreach($page as $objRec) {
-                            $phpobj[] = $objRec;
-                        }
+                case api_returnFormat::PHPOBJ:
+                    foreach ($page as $objRec) {
+                        $phpobj[] = $objRec;
+                    }
                     break;
-                    case api_returnFormat::CSV:
-                        $page = explode("\n", $page);
-                        array_shift($page);
-                        $csv .= implode($page, "\n");
+                case api_returnFormat::CSV:
+                    $page = explode("\n", $page);
+                    array_shift($page);
+                    $csv .= implode($page, "\n");
                     break;
-                    case api_returnFormat::XML:
-                        $xml .= $page;
+                case api_returnFormat::XML:
+                    $xml .= $page;
                     break;
-                    default:
-                        throw new Exception("Invalid return format: " . $returnFormat);
+                default:
+                    throw new Exception("Invalid return format: " . $returnFormat);
                     break;
                 }
 
@@ -455,7 +520,8 @@ class api_post {
      *
      * @return String the raw xml returned by Intacct
      */
-    public static function inspect($object, $detail, api_session $session) {
+    public static function inspect($object, $detail, api_session $session)
+    {
         $inspectXML = "<inspect detail='$detail'><object>$object</object></inspect>";
         $objXml = api_post::post($inspectXML, $session);
         $simpleXml = simplexml_load_string($objXml);
@@ -467,16 +533,19 @@ class api_post {
 
     /**
      * Read an object by its name field (vid for standard objects)
-     * @param String $object object type
-     * @param String $name comma separated list of names.
-     * @param String $fields comma separated list of fields.
-     * @param api_session $session  instance of api_session object.
+     *
+     * @param String      $object  object type
+     * @param String      $name    comma separated list of names.
+     * @param String      $fields  comma separated list of fields.
+     * @param api_session $session instance of api_session object.
+     *
      * @return Array of objects.  If only one name is passed, the fields will be directly accessible.
      */
-    public static function readByName($object, $name, $fields, api_session $session) {
+    public static function readByName($object, $name, $fields, api_session $session)
+    {
         $name = HTMLSpecialChars($name);
         $readXml = "<readByName><object>$object</object><keys>$name</keys><fields>$fields</fields><returnFormat>csv</returnFormat></readByName>";
-        $objCsv = api_post::post($readXml,$session);
+        $objCsv = api_post::post($readXml, $session);
 
         if (trim($objCsv) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
@@ -484,24 +553,26 @@ class api_post {
         }
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
-        if (count(explode(",",$name)) > 1) {
+        if (count(explode(",", $name)) > 1) {
             return $objAry;
-        }
-        else {
+        } else {
             return $objAry[0];
         }
     }
 
     /**
      * Reads all the records related to a source record through a named relationship.
-     * @param String $object the integration name of the object
-     * @param String $keys a comma separated list of 'id' values of the source records from which you want to read related records
-     * @param String $relation the name of the relationship.  This will determine the type of object you are reading
-     * @param String $fields a comma separated list of fields to return
-     * @param api_session $session
+     *
+     * @param String      $object   the integration name of the object
+     * @param String      $keys     a comma separated list of 'id' values of the source records from which you want to read related records
+     * @param String      $relation the name of the relationship.  This will determine the type of object you are reading
+     * @param String      $fields   a comma separated list of fields to return
+     * @param api_session $session  api_session object with valid connection
+     *
      * @return Array of objects
      */
-    public static function readRelated($object, $keys, $relation, $fields, api_session $session) {
+    public static function readRelated($object, $keys, $relation, $fields, api_session $session)
+    {
         $readXml = "<readRelated><object>$object</object><keys>$keys</keys><relation>$relation</relation><fields>$fields</fields><returnFormat>csv</returnFormat></readRelated>";
         $objCsv = api_post::post($readXml, $session);
         api_post::validateReadResults($objCsv);
@@ -512,12 +583,15 @@ class api_post {
     /**
      * WARNING: This method will attempt to delete all records of a given object type
      * Deletes first 10000 by default
-     * @param String $object object type
+     *
+     * @param String      $object  object type
      * @param api_session $session instance of api_session object.
-     * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000
+     * @param Integer     $max     [optional] Maximum number of records to delete.  Default is 10000
+     *
      * @return Integer count of records deleted
      */
-    public static function deleteAll($object, api_session $session, $max=10000) {
+    public static function deleteAll($object, api_session $session, $max=10000)
+    {
 
         // read all the record ids for the given object
         $ids = api_post::readByQuery($object, "id > 0", "id", $session, $max);
@@ -528,7 +602,7 @@ class api_post {
 
         $count = 0;
         $delIds = array();
-        foreach($ids as $rec) {
+        foreach ($ids as $rec) {
             $delIds[] = $rec['id'];
             if (count($delIds) == 100) {
                 api_post::delete($object, implode(",", $delIds), $session);
@@ -548,13 +622,16 @@ class api_post {
     /**
      * WARNING: This method will attempt to delete all records of a given object type given a query
      * Deletes first 10000 by default
-     * @param String $object object type
-     * @param String $query the query string to execute.  Use SQL operators
+     *
+     * @param String      $object  object type
+     * @param String      $query   the query string to execute.  Use SQL operators
      * @param api_session $session instance of api_session object.
-     * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000
+     * @param Integer     $max     [optional] Maximum number of records to delete.  Default is 10000
+     *
      * @return Integer count of records deleted
      */
-    public static function deleteByQuery($object, $query, api_session $session, $max=10000) {
+    public static function deleteByQuery($object, $query, api_session $session, $max=10000)
+    {
 
         // read all the record ids for the given object
         $ids = api_post::readByQuery($object, "id > 0 and $query", "id", $session, $max);
@@ -565,7 +642,7 @@ class api_post {
 
         $count = 0;
         $delIds = array();
-        foreach($ids as $rec) {
+        foreach ($ids as $rec) {
             $delIds[] = $rec['id'];
             if (count($delIds) == 100) {
                 api_post::delete($object, implode(",", $delIds), $session);
@@ -584,13 +661,17 @@ class api_post {
 
     /**
      * Internal method for posting the invocation to the Intacct XML Gateway
-     * @param String $xml the XML request document
-     * @param api_session $session
-     * @param string $dtdVersion
+     *
+     * @param String      $xml        the XML request document
+     * @param api_session $session    an api_session instance with an active connection
+     * @param string      $dtdVersion Either "2.1" or "3.0".  Defaults to "3.0"
+     * @param boolean     $multiFunc  whether or not this invocation calls multiple methods.  Default is false
+     *
      * @throws Exception
      * @return String the XML response document
      */
-    private static function post($xml, api_session $session, $dtdVersion="3.0",$multiFunc=false) {
+    private static function post($xml, api_session $session, $dtdVersion="3.0", $multiFunc=false)
+    {
 
         $sessionId = $session->sessionId;
         $endPoint = $session->endPoint;
@@ -662,14 +743,13 @@ class api_post {
 
         if ($multiFunc) {
             $xml = $templateHead . $xml . $templateFoot;
-        }
-        else {
+        } else {
             $xml = $templateHead . $contentHead . $xml . $contentFoot . $templateFoot;
         }
 
         if (self::$dryRun == true) {
             self::$lastRequest = $xml;
-            return;
+            return null;
         }
 
 
@@ -700,34 +780,37 @@ class api_post {
     /**
      * You won't normally use this function, but if you just want to pass a fully constructed XML document
      * to Intacct, then use this function.
-     * @param String $body a Valid XML string
+     *
+     * @param String $body     a Valid XML string
      * @param String $endPoint URL to post the XML to
+     *
      * @throws exception
      * @return String the raw XML returned by Intacct
      */
-    public static function execute($body, $endPoint) {
+    public static function execute($body, $endPoint)
+    {
 
         self::$lastRequest = $body;
 
         $ch = curl_init();
-        curl_setopt( $ch, CURLOPT_URL, $endPoint );
-        curl_setopt( $ch, CURLOPT_HEADER, 0 );
-        curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1 );
-        curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-        curl_setopt( $ch, CURLOPT_TIMEOUT, 3000 ); //Seconds until timeout
-        curl_setopt( $ch, CURLOPT_POST, 1 );
+        curl_setopt($ch, CURLOPT_URL, $endPoint);
+        curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 3000); //Seconds until timeout
+        curl_setopt($ch, CURLOPT_POST, 1);
         // TODO: Research and correct the problem with CURLOPT_SSL_VERIFYPEER
-        curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false); // yahoo doesn't like the api.intacct.com CA
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // yahoo doesn't like the api.intacct.com CA
 
-        $body = "xmlrequest=" . urlencode( $body );
-        curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
+        $body = "xmlrequest=" . urlencode($body);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
 
-        $response = curl_exec( $ch );
+        $response = curl_exec($ch);
         $error = curl_error($ch);
         if ($error != "") {
             throw new exception($error);
         }
-        curl_close( $ch );
+        curl_close($ch);
 
         self::$lastResponse = $response;
         return $response;
@@ -736,10 +819,14 @@ class api_post {
 
     /**
      * Validate the response from Intacct and look for request level errors
+     *
      * @param String $response The XML response document
+     *
+     * @return Array Array of errors encountered
      * @throws Exception
      */
-    public static function findResponseErrors($response) {
+    public static function findResponseErrors($response)
+    {
 
         $errorArray = array();
 
@@ -766,12 +853,14 @@ class api_post {
             if (isset($simpleXml->errormessage)) {
                 $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->errormessage));
             }
-        }
-        else {
+        } else {
             $results = $simpleXml->xpath('/response/operation/result');
             foreach ($results as $result) {
                 if ((string)$result->status == "failure") {
-                    $errorArray[] = array ( 'controlid' => (string)$result->controlid, 'desc' =>  api_util::xmlErrorToString($result->errormessage));
+                    $errorArray[] = array (
+                        'controlid' => (string)$result->controlid,
+                        'desc' =>  api_util::xmlErrorToString($result->errormessage)
+                    );
                 }
             }
         }
@@ -780,10 +869,14 @@ class api_post {
 
     /**
      * Validate the response from Intacct and look for request level errors
+     *
      * @param String $response The XML response document
+     *
      * @throws Exception
+     * @return null
      */
-    private static function validateResponse($response) {
+    private static function validateResponse($response)
+    {
 
         // don't send errors to the log
         libxml_use_internal_errors(true);
@@ -807,8 +900,7 @@ class api_post {
             if (isset($simpleXml->errormessage)) {
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
-        }
-        else { 
+        } else {
             $results = $simpleXml->operation->result;
             foreach ($results as $res) {
                 if ($res->status == "failure") {
@@ -821,12 +913,15 @@ class api_post {
 
     /**
      * Parses the response document from update requests and returns an array of ids affected
-     * @param String $response
-     * @param String $objectName
+     *
+     * @param String $response   XML response string
+     * @param String $objectName the name of the object updated
+     *
      * @return array of IDs
      * @throws Exception
      */
-    private static function processUpdateResults($response, $objectName) {
+    private static function processUpdateResults($response, $objectName)
+    {
         $simpleXml = simplexml_load_string($response);
         if ($simpleXml === false) {
             throw new Exception("Invalid XML response: \n " . var_export($response, true));
@@ -843,14 +938,12 @@ class api_post {
 
         $updates = array();
 
-        foreach($simpleXml->operation->result->data->{$objectName} as $record) {
+        foreach ($simpleXml->operation->result->data->{$objectName} as $record) {
             if ($record->id) {
                 $updates[] = (string)$record->id;
-            }
-            else if ($record->RECORDNO) {
+            } else if ($record->RECORDNO) {
                 $updates[] = (string)$record->RECORDNO;
-            }
-            else {
+            } else {
                 $updates[] = 'Record updated did not have id or RECORDNO';
             }
         }
@@ -860,10 +953,14 @@ class api_post {
 
     /**
      * Valid responses from read methods
-     * @param $response
+     *
+     * @param String $response The XML response string
+     *
      * @throws Exception
+     * @return null
      */
-    private static function validateReadResults($response) {
+    private static function validateReadResults($response)
+    {
 
         // don't send warnings to the error log
         libxml_use_internal_errors(true);
@@ -885,8 +982,7 @@ class api_post {
         if ((string)$status != 'success') {
             $error = $simpleXml->operation->result->errormessage;
             throw new Exception("[Error] " . api_util::xmlErrorToString($error));
-        }
-        else {
+        } else {
             return; // no error found.
         }
 
@@ -894,13 +990,15 @@ class api_post {
 
     /**
      * Process results from any of the get_list method and convert into the appropriate structure
-     * @param String $response result from post to Intacct Web Services
+     *
+     * @param String $response     result from post to Intacct Web Services
      * @param string $returnFormat valid returnFormat value
-     * @param Integer $count by reference count of records returned
+     *
      * @throws Exception
      * @return Mixed string or object depending on return format
      */
-    public static function processListResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+    public static function processListResults($response, $returnFormat = api_returnFormat::PHPOBJ)
+    {
 
         $xml = simplexml_load_string($response);
 
@@ -916,34 +1014,35 @@ class api_post {
         }
 
         $json = json_encode($xml->operation->result->data);
-        $array = json_decode($json,TRUE);
+        $array = json_decode($json, true);
         return $array;
     }
 
     /**
      * Process results from any of the read methods and convert into the appropriate structure
-     * @param String $response result from post to Intacct Web Services
-     * @param string $returnFormat valid returnFormat value
-     * @param Integer $count by reference count of records returned
+     *
+     * @param String  $response     result from post to Intacct Web Services
+     * @param Integer &$count       by reference count of records returned
+     * @param string  $returnFormat valid returnFormat value
+     *
      * @throws Exception
      * @return Mixed string or object depending on return format
      */
-    private static function processReadResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+    private static function processReadResults($response, &$count, $returnFormat = api_returnFormat::PHPOBJ)
+    {
         $objAry = array(); $csv = ''; $json = ''; $xml = '';
         if ($returnFormat == api_returnFormat::PHPOBJ) {
             $objAry = api_util::csvToPhp($response);
             $count = count($objAry);
             return $objAry;
-        }
-        elseif ($returnFormat == api_returnFormat::JSON) {
+        } elseif ($returnFormat == api_returnFormat::JSON) {
             // this seems really expensive
             $objAry = json_decode($response);
             // todo: JSON doesn't work because we don't know what object to refer to
             throw new Exception("The JSON return format is not implemented yet.");
-        }
-        elseif ($returnFormat == api_returnFormat::XML) {
+        } elseif ($returnFormat == api_returnFormat::XML) {
             $xmlObj = simplexml_load_string($response);
-            foreach($xmlObj->operation->result->data->attributes() as $attribute => $value) {
+            foreach ($xmlObj->operation->result->data->attributes() as $attribute => $value) {
                 if ($attribute == 'count') {
                     $count = $value;
                     break;
@@ -951,14 +1050,12 @@ class api_post {
             }
             $xml = $xmlObj->operation->result->data->view->asXml();
             return $xml;
-        }
-        elseif ($returnFormat == api_returnFormat::CSV) {
+        } elseif ($returnFormat == api_returnFormat::CSV) {
             $objAry = api_util::csvToPhp($response);
             $count = count($objAry);
             $csv = $response;
             return $csv;
-        }
-        else {
+        } else {
             throw new Exception("Unknown return format $returnFormat.  Refer to the api_returnFormat class.");
         }
 
@@ -966,20 +1063,31 @@ class api_post {
 
     /**
      * Helpful for debugging purposes.  Get the last full XML document passed to Intacct
+     *
      * @return String XML request
      */
-    public static function getLastRequest() {
-      return self::$lastRequest;
+    public static function getLastRequest()
+    {
+        return self::$lastRequest;
     }
 
     /**
      * Helpful for debugging purposes.  Get the last response from Intacct
+     *
      * @return String the raw respons from Intacct
      */
-    public static function getLastResponse() {
-      return self::$lastResponse;
+    public static function getLastResponse()
+    {
+        return self::$lastResponse;
     }
 
+    /**
+     * Set the invocation to generate XML, but not post to Intacct
+     *
+     * @param bool $tf true or false
+     *
+     * @return null
+     */
     public static function setDryRun($tf=true)
     {
         self::$dryRun = $tf;

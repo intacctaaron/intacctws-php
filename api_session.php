@@ -1,7 +1,37 @@
-<?
+<?php
+/**
+ * Copyright (c) 2013, Intacct OpenSource Initiative
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+ * following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following
+ * disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * OVERVIEW
+ * The general pattern for using this SDK is to first create an instance of api_session and call either
+ * connectCredentials or connectSessionId to start an active session with the Intacct Web Services gateway.
+ * You will then pass the api_session as an argument in the api_post class methods.  intacctws-php handles all
+ * XML serialization and de-serialization and HTTPS transport.
+ */
+
 include_once('api_post.php');
 
-class api_session {
+/**
+ * Class api_session  Object used to maintain connection information with Intacct Web Services
+ */
+class api_session
+{
 
     public $sessionId;
     public $endPoint;
@@ -43,18 +73,22 @@ class api_session {
 
 
     /**
-     * Connect to the Intacct Web Service using a set of user credntials for a subentity
-     * @param String $companyId company to connect to
-     * @param String $userId user
-     * @param String $password The users's password
-     * @param String $senderId Your Intacct Partner sender id
+     * Build the XML Request header
+     *
+     * @param String $companyId      company to connect to
+     * @param String $userId         user
+     * @param String $password       The users's password
+     * @param String $senderId       Your Intacct Partner sender id
      * @param String $senderPassword Your Intacct Partner password
-     * @param String $entityType location || client
-     * @param String $entityId The sub entity id
+     * @param String $entityType     location || client
+     * @param String $entityId       The sub entity id
+     *
+     * @return mixed
      * @throws Exception this method returns no value, but will raise any connection exceptions
      */
-    private function buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType = null, $entityId = null ) 
-    {
+    private function buildHeaderXML(
+        $companyId, $userId, $password, $senderId, $senderPassword, $entityType = null, $entityId = null
+    ) {
 
         $xml = self::XML_HEADER . self::XML_LOGIN . self::XML_FOOTER;
 
@@ -66,11 +100,9 @@ class api_session {
 
         if ($entityType == 'location') {
             $xml = str_replace("{%entityid%}", "<locationid>$entityId</locationid>", $xml);
-        }
-        else if ($entityType == 'client') {
+        } else if ($entityType == 'client') {
             $xml = str_replace("{%entityid%}", "<clientid>$entityId</clientid>", $xml);
-        }
-        else {
+        } else {
             $xml = str_replace("{%entityid%}", "", $xml);
         }
 
@@ -78,17 +110,25 @@ class api_session {
     }
 
     /**
-     * Connect to the Intacct Web Service using a set of user credntials
-     * @param String $companyId company to connect to
-     * @param String $userId user
-     * @param String $password The users's password
-     * @param String $senderId Your Intacct Partner sender id
+     * Connect to the Intacct Web Service using a set of user credentials
+     *
+     * @param String $companyId      company to connect to
+     * @param String $userId         user
+     * @param String $password       The users's password
+     * @param String $senderId       Your Intacct Partner sender id
      * @param String $senderPassword Your Intacct Partner password
-     * @throws Exception this method returns no value, but will raise any connection exceptions
+     * @param null   $entityType     location or client
+     * @param null   $entityId       ID of the location or client
+     *
+     * @return null
      */
-    public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword, $entityType=null, $entityId=null) {
+    public function connectCredentials(
+        $companyId, $userId, $password, $senderId, $senderPassword, $entityType=null, $entityId=null
+    ) {
 
-        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId); 
+        $xml = $this->buildHeaderXML(
+            $companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId
+        );
 
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
@@ -106,19 +146,26 @@ class api_session {
 
 
     /**
-     * Connect to the Intacct Web Service using a set of user credntials for a subentity
-     * @param String $companyId company to connect to
-     * @param String $userId user
-     * @param String $password The users's password
-     * @param String $senderId Your Intacct Partner sender id
+     * Connect to the Intacct Web Service using a set of user credentials for a subentity
+     *
+     * @param String $companyId      company to connect to
+     * @param String $userId         user
+     * @param String $password       The users's password
+     * @param String $senderId       Your Intacct Partner sender id
      * @param String $senderPassword Your Intacct Partner password
-     * @param String $entityType location || client
-     * @param String $clientid The sub entity id
-     * @throws Exception this method returns no value, but will raise any connection exceptions
+     * @param String $entityType     location || client
+     * @param String $entityId       Entity ID or Client ID
+     *
+     * @internal param String $clientid The sub entity id
+     * @return null
      */
-    public function connectCredentialsEntity($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId) {
+    public function connectCredentialsEntity(
+        $companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId
+    ) {
 
-        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId); 
+        $xml = $this->buildHeaderXML(
+            $companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId
+        );
 
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
@@ -138,12 +185,16 @@ class api_session {
      * Create a session with the Intacct Web Services with an existing session.
      * You'll normally get the sessionid using a merge field (or injection parameter)
      * in an HTTP trigger or integration link
-     * @param String $sessionId a valid Intacct session Id
-     * @param String $senderId Your Intacct partner sender id
+     *
+     * @param String $sessionId      a valid Intacct session Id
+     * @param String $senderId       Your Intacct partner sender id
      * @param String $senderPassword Your Intacct partner password
+     *
      * @throws Exception This method returns no values, but will raise an exception if there's a connection error
+     * @return null
      */
-    public function connectSessionId($sessionId, $senderId, $senderPassword) {
+    public function connectSessionId($sessionId, $senderId, $senderPassword)
+    {
 
         $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER;
         $xml = str_replace("{1%}", $sessionId, $xml);
@@ -163,7 +214,16 @@ class api_session {
         $this->senderPassword = $senderPassword;
     }
 
-    private static function validateConnection($response) {
+    /**
+     * Validate the repsonse from Intacct to see if we successfully created a session
+     *
+     * @param String $response The XML response from Intacct
+     *
+     * @throws Exception
+     * @return null
+     */
+    private static function validateConnection($response)
+    {
         $simpleXml = simplexml_load_string($response);
         if ($simpleXml === false) {
             throw new Exception("Invalid XML response: \n" . var_export($response, true));
@@ -190,11 +250,8 @@ class api_session {
         if ((string)$status != 'success') {
             $error = $simpleXml->operation->result->errormessage;
             throw new Exception(" [Error] " . (string)$error->error[0]->description2);
-        }
-        else {
+        } else {
             return; // no error found.
         }
     }
 }
-
-?>

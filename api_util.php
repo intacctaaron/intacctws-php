@@ -29,17 +29,20 @@
  * class api_util
  * Utility methods for the intacctws-php classes
  */
-class api_util {
+class api_util
+{
 
     /**
      * Convert a currency amount to a decimal amount
-     * @param String $value
-     * @internal param String $value amount in currency format
+     *
+     * @param String $value amount in currency format
+     *
      * @return Number amount in decimal format
      */
-    public static function currToDecimal($value) {
+    public static function currToDecimal($value)
+    {
         $new = "";
-        for($x=0; $x < strlen($value); $x++) {
+        for ($x=0; $x < strlen($value); $x++) {
             if (substr($value, $x, 1) != '$' && substr($value, $x, 1) != ',') {
                 $new .= substr($value, $x, 1);
             }
@@ -50,13 +53,16 @@ class api_util {
 
     /**
      * Convert a date to the old 2.1 date format
+     *
      * @param String $date date in format "m/d/Y"
+     *
      * @return String in the old 2.1 xml date format
      */
-    public static function dateToOldDate($date) {
+    public static function dateToOldDate($date)
+    {
         $xml = "";
-        $xml .= "<year>" . date("Y",strToTime($date)) . "</year>";
-        $xml .= "<month>" . date("m",strToTime($date)) . "</month>";
+        $xml .= "<year>" . date("Y", strToTime($date)) . "</year>";
+        $xml .= "<month>" . date("m", strToTime($date)) . "</month>";
         $xml .= "<day>" . date("d", strToTime($date)) . "</day>";
         return $xml;
     }
@@ -65,11 +71,14 @@ class api_util {
      * Given a starting date and a number of periods, return an array of dates
      * where the first date is the last day of the month of the first period
      * and every subsequent date is the last day of the following month
-     * @param String $date starting date
-     * @param int $count number of periods to compute
+     *
+     * @param String $date  starting date
+     * @param int    $count number of periods to compute
+     *
      * @return array
      */
-    public static function getRangeOfDates($date, $count) {
+    public static function getRangeOfDates($date, $count)
+    {
         // the first date is the first of the following month                                                                        
         $month = date("m", strToTime($date)) + 1;
         $year = date("Y", strToTime($date));
@@ -81,7 +90,7 @@ class api_util {
         $dateTime->modify("-1 day");
 
         $dates = array($dateTime->format("Y-m-d"));
-        // now, iterate $count - 1 times adding one month to each                                                                    
+        // now, iterate $count - 1 times adding one month to each
         for ($x=1; $x < $count; $x++) {
             $dateTime->modify("+1 day");
             $dateTime->modify("+1 month");
@@ -91,13 +100,16 @@ class api_util {
         return $dates;
     }
 
-    /**                                                                                                                              
-     * Convert a php structure to an XML element                                                                                     
-     * @param String $key element name
-     * @param Array $values element values
+    /**
+     * Convert a php structure to an XML element
+     *
+     * @param String $key    element name
+     * @param Array  $values element values
+     *
      * @return string xml                                                                                                            
      */
-    public static function phpToXml($key, $values) {
+    public static function phpToXml($key, $values)
+    {
         $xml = "";
         if (!is_array($values)) {
             return "<$key>$values</$key>";
@@ -106,7 +118,7 @@ class api_util {
         if (!is_numeric(array_shift(array_keys($values)))) {
             $xml = "<" . $key . ">";
         }
-        foreach($values as $node => $value) {
+        foreach ($values as $node => $value) {
             $attrString = "";
             $_xml = "";
             if (is_array($value)) {
@@ -116,9 +128,9 @@ class api_util {
                 // collect any attributes
                 foreach ($value as $_k => $v) {
                     if (!is_array($v)) {
-                        if (substr($_k,0,1) == '@') {
+                        if (substr($_k, 0, 1) == '@') {
                             $pad = ($attrString == "") ? " " : "";
-                            $aname = substr($_k,1);
+                            $aname = substr($_k, 1);
                             $aval  = $v;
                             //$attrs = explode(':', substr($v,1));
                             //$attrString .= $pad . $attrs[0].'="'.$attrs[1].'" ';
@@ -130,20 +142,18 @@ class api_util {
 
                 $firstKey = array_shift(array_keys($value));
                 if (is_array($value[$firstKey]) || count($value) > 1 ) {
-                    $_xml = self::phpToXml($node,$value) ; 
-                }
-                else {
+                    $_xml = self::phpToXml($node, $value);
+                } else {
                     $v = $value[$firstKey];
                     $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 }
 
                 if ($attrString != "") {
-                    $_xml = preg_replace("/^<$node/","<$node $attrString", $_xml);
+                    $_xml = preg_replace("/^<$node/", "<$node $attrString", $_xml);
                 }
 
                 $xml .= $_xml;
-            }
-            else {
+            } else {
                 $xml .= "<" . $node . $attrString . ">" . htmlspecialchars($value) . "</" . $node . ">";
             }
         }
@@ -155,9 +165,15 @@ class api_util {
 
     /**                                                                                                                              
      * Convert a CSV string result into a php array.                                                                                 
-     * This work for Intacct API results.  Not a generic method                                                                      
+     * This work for Intacct API results.  Not a generic method
+     *
+     * @param String $csv The CSV text to convert to php
+     *
+     * @return array
+     * @throws Exception
      */
-    public static function csvToPhp($csv) {
+    public static function csvToPhp($csv)
+    {
 
         $fp = fopen('php://temp', 'r+');
         fwrite($fp, trim($csv));
@@ -166,15 +182,15 @@ class api_util {
 
         $table = array();
         // get the header row                                                                                                        
-        $header = fgetcsv($fp, 10000, ',','"');
+        $header = fgetcsv($fp, 10000, ',', '"');
         if (is_null($header) || is_null($header[0])) {
             throw new exception ("Unable to determine header.  Is there garbage in the file?");
         }
 
         // get the rows                                                                                                              
-        while (($data = fgetcsv($fp, 10000, ',','"')) !== false) {
+        while (($data = fgetcsv($fp, 10000, ',', '"')) !== false) {
             $row = array();
-            foreach($header as $key => $value) {
+            foreach ($header as $key => $value) {
                 $row[$value] = $data[$key];
             }
             $table[] = $row;
@@ -185,10 +201,13 @@ class api_util {
 
     /**
      * Convert a error object into nice text
+     *
      * @param Object $error simpleXmlObject
+     *
      * @return string formatted error message
      */
-    public static function xmlErrorToString($error) {
+    public static function xmlErrorToString($error)
+    {
 
         if (!is_object($error)) {
             return "Malformed error: " . var_export($error, true);

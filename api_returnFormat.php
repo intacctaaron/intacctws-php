@@ -30,20 +30,30 @@
  * Set of constants and their validation for object serialization
  */
 class api_returnFormat {
-	
+
     const PHPOBJ = 'phpobj';
     const CSV = 'csv';
     const XML = 'xml';
     const JSON = 'json';
-    
+
     /**
      * simple mechanism to ensure a valid value is passed
+     *
+     * @param String $format value to test
+     *
+     * @throws Exception
+     * @return null
      */
-    public static function validateReturnFormat($format) {
-        if (!in_array($format, array(self::PHPOBJ,
+    public static function validateReturnFormat($format)
+    {
+        $validValues = array(
+            self::PHPOBJ,
+            self::JSON,
             self::CSV,
-            self::XML,
-            self::JSON))) {
+            self::XML
+        );
+
+        if (!in_array($format, $validValues)) {
             throw new Exception("$format is not a valid return format.");
         }
     }
