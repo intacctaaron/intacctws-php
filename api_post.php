@@ -261,7 +261,10 @@ class api_post {
         $xml = api_util::phpToXml('content',array($func));
         $res = api_post::post($xml, $session,$dtdVersion, true); 
         $ret = api_post::processListResults($res, api_returnFormat::PHPOBJ, $count);
-        $toReturn = $ret[$object];
+        $toReturn = null;
+        if (array_key_exists($object,$ret)) {
+            $toReturn = $ret[$object];
+        }
         if (is_array($toReturn)) {
             $keys = array_keys($toReturn);
             if (!is_numeric($keys[0])) {
