@@ -144,7 +144,12 @@ class api_util {
                 $xml .= $_xml;
             }
             else {
-                $xml .= "<" . $node . $attrString . ">" . htmlspecialchars($value) . "</" . $node . ">";
+                if (is_numeric($node)) {
+                    $xml .= "<" . $key. $attrString . ">" . htmlspecialchars($value) . "</" . $key. ">";
+                }
+                else {
+                    $xml .= "<" . $node . $attrString . ">" . htmlspecialchars($value) . "</" . $node . ">";
+                }
             }
         }
         if (!is_numeric(array_shift(array_keys($values)))) {
