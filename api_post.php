@@ -1,4 +1,4 @@
-<?
+<?php
 include_once('api_util.php');
 include_once('api_viewFilter.php');
 include_once('api_viewFilters.php');

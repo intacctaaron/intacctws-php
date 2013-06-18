@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  * Copyright (c) 2013, Intacct OpenSource Initiative
  * All rights reserved.

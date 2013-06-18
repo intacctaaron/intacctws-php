@@ -1,4 +1,4 @@
-<?
+<?php
 include_once('api_post.php');
 
 class api_session {
