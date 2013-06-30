@@ -557,10 +557,10 @@ class api_post {
      * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000
      * @return Integer count of records deleted
      */
-    public static function deleteByQuery($object, $query, api_session $session, $max=10000) {
+    public static function deleteByQuery($object, $query, $key_field, api_session $session, $max=10000) {
 
         // read all the record ids for the given object
-        $ids = api_post::readByQuery($object, "id > 0 and $query", "id", $session, $max);
+        $ids = api_post::readByQuery($object, "$key_field > 0 and $query", $key_field, $session, $max);
 
         if ((!is_array($ids) && trim($ids) == '') || !count($ids) > 0) {
             return 0;
@@ -569,7 +569,7 @@ class api_post {
         $count = 0;
         $delIds = array();
         foreach($ids as $rec) {
-            $delIds[] = $rec['id'];
+            $delIds[] = $rec[$key_field];
             if (count($delIds) == 100) {
                 api_post::delete($object, implode(",", $delIds), $session);
                 $count += 100;
