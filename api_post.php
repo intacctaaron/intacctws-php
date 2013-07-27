@@ -450,6 +450,88 @@ class api_post {
     }
 
     /**
+     * Read records using a query.  Specify the object you want to query and something like a "where" clause"
+     * @param String $object the object upon which to run the query
+     * @param String $query the query string to execute.  Use SQL operators
+     * @param String $fields A comma separated list of fields to return
+     * @param api_session $session An instance of the api_session object with a valid connection
+     * @param int $maxRecords number of records to return.  Defaults to 100000
+     * @param string $returnFormat defaults to php object.  Pass one of the valid constants from api_returnFormat class
+     * @return mixed either string or array of objects depending on returnFormat argument
+     */
+    public static function readDocumentByQuery($object, $docparid, $query, $fields, api_session $session, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ) {
+
+        $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
+
+        if ($returnFormat == api_returnFormat::PHPOBJ) {
+            $returnFormatArg = api_returnFormat::CSV;
+        }
+        else {
+            $returnFormatArg = $returnFormat;
+        }
+
+        // TODO: Implement returnFormat.  Today we only support PHPOBJ
+        $query = HTMLSpecialChars($query);
+
+        $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>$returnFormatArg</returnFormat>";
+        $readXml .= "<docparid>$docparid</docparid>";
+        $readXml .= "<pagesize>$pageSize</pagesize>";
+        $readXml .= "</readByQuery>";
+
+        $response = api_post::post($readXml,$session);
+        if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
+            // csv with no records will have no response, so avoid the error from validate and just return
+            return '';
+        }
+        api_post::validateReadResults($response);
+
+
+        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
+        $$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
+
+        $totalcount = $thiscount;
+
+        // we have no idea if there are more if CSV is returned, so just check
+        // if the last count returned was  $pageSize
+        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+            $readXml = "<readMore><object>$object</object></readMore>";
+            try {
+                $response = api_post::post($readXml, $session);
+                api_post::validateReadResults($response);
+                $page = self::processReadResults($response, $returnFormat, $pageCount);
+                $totalcount += $pageCount;
+                $thiscount = $pageCount;
+
+                switch($returnFormat) {
+                    case api_returnFormat::PHPOBJ:
+                        foreach($page as $objRec) {
+                            $phpobj[] = $objRec;
+                        }
+                    break;
+                    case api_returnFormat::CSV:
+                        $page = explode("\n", $page);
+                        array_shift($page);
+                        $csv .= implode($page, "\n");
+                    break;
+                    case api_returnFormat::XML:
+                        $xml .= $page;
+                    break;
+                    default:
+                        throw new Exception("Invalid return format: " . $returnFormat);
+                    break;
+                }
+
+            }
+            catch (Exception $ex) {
+                // we've probably exceeded the limit
+                break;
+            }
+        }
+        return $$returnFormat;
+    }
+
+
+    /**
      * Inspect an object to get a list of its fields
      *
      * @param String      $object  The integration name of the object.  Pass '*' to get a complete list of objects
