@@ -641,6 +641,7 @@ class api_post {
      */
     public static function deleteByQuery($object, $query, $key_field, api_session $session, $max=10000) {
 
+        $num_per_func= 100;
         // read all the record ids for the given object
         $ids = api_post::readByQuery($object, "$key_field > 0 and $query", $key_field, $session, $max);
 
@@ -650,11 +651,18 @@ class api_post {
 
         $count = 0;
         $delIds = array();
+
         foreach($ids as $rec) {
             $delIds[] = $rec[$key_field];
-            if (count($delIds) == 100) {
-                api_post::delete($object, implode(",", $delIds), $session);
-                $count += 100;
+            if (count($delIds) == $num_per_func) {
+                try {
+                    api_post::delete($object, implode(",", $delIds), $session);
+                }
+                catch (Exception $ex) {
+                    $delIds = array();
+                    continue;
+                }
+                $count += $num_per_func;
                 $delIds = array();
             }
         }
@@ -793,14 +801,16 @@ class api_post {
     public static function execute($body, $endPoint) {
 
         self::$lastRequest = $body;
+        self::$lastResponse = null;
 
         $ch = curl_init();
         curl_setopt( $ch, CURLOPT_URL, $endPoint );
         curl_setopt( $ch, CURLOPT_HEADER, 0 );
         curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1 );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-        curl_setopt( $ch, CURLOPT_TIMEOUT, 3000 ); //Seconds until timeout
+        curl_setopt( $ch, CURLOPT_TIMEOUT, 600 ); //Seconds until timeout
         curl_setopt( $ch, CURLOPT_POST, 1 );
+        curl_setopt( $ch, CURLOPT_VERBOSE, false );
         // TODO: Research and correct the problem with CURLOPT_SSL_VERIFYPEER
         curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false); // yahoo doesn't like the api.intacct.com CA
 
@@ -810,6 +820,7 @@ class api_post {
         $response = curl_exec( $ch );
         $error = curl_error($ch);
         if ($error != "") {
+            dbg("CURL ERROR:  curl_errno returned: " . curl_errno($ch));
             throw new exception($error);
         }
         curl_close( $ch );
