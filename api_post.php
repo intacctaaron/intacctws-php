@@ -243,6 +243,9 @@ class api_post {
     public static function get_list($object, $filter, $sorts, $fields, api_session $session, $dtdVersion="2.1") {
         $get_list = array();
         $get_list['@object'] = $object;
+        $get_list['@start'] = 0;
+        $get_list['@maxitems'] = 100;
+
         if ($filter != null) {
             $get_list['filter'] = $filter;
         }
@@ -271,6 +274,44 @@ class api_post {
                 $toReturn = array ($toReturn);
             }
         }
+
+        // now get more if there are any
+        $xml = simplexml_load_string($res);
+        $total = $xml->operation->result->listtype;
+        $attrs = $total->attributes();
+        $total = $attrs['total'];
+
+        if (count($toReturn) < $total) {
+
+            do {
+                // we need to fetch more
+                $get_list['@start'] = count($toReturn);
+                $func['function'] = array();
+
+                $func['function'][] = array (
+                    '@controlid' => 'control1',
+                    'get_list' => $get_list
+                );
+
+                $xml = api_util::phpToXml('content',array($func));
+                $res = api_post::post($xml, $session,$dtdVersion, true); 
+                $ret = api_post::processListResults($res, api_returnFormat::PHPOBJ, $count);
+
+                $nextBatch = null;
+                if (array_key_exists($object,$ret)) {
+                    $nextBatch = $ret[$object];
+                }
+                if (is_array($nextBatch)) {
+                    $keys = array_keys($nextBatch);
+                    if (!is_numeric($keys[0])) {
+                        $nextBatch = array ($nextBatch);
+                    }
+                }
+                $toReturn = array_merge($toReturn,$nextBatch);
+
+            } while ( count($toReturn) < $total) ;
+        }
+
         return $toReturn;
     }
 
