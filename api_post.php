@@ -803,6 +803,7 @@ class api_post {
 
         if (self::$dryRun == true) {
             self::$lastRequest = $xml;
+            self::$lastResponse= null;
             return;
         }
 
@@ -861,7 +862,6 @@ class api_post {
         $response = curl_exec( $ch );
         $error = curl_error($ch);
         if ($error != "") {
-            dbg("CURL ERROR:  curl_errno returned: " . curl_errno($ch));
             throw new exception($error);
         }
         curl_close( $ch );
@@ -1052,8 +1052,27 @@ class api_post {
             return;
         }
 
-        $json = json_encode($xml->operation->result->data);
+        $json = json_encode($xml->operation->result->data,JSON_FORCE_OBJECT);
         $array = json_decode($json,TRUE);
+
+        $obj = key($array);
+
+        if (!is_numeric(key($array[$obj]))) {
+            $array[$obj] =  array ( $array[$obj] );
+        }
+
+        // check for known line item issues
+        // lame, but not sure how else to fix this. the json_decode removes the level from a single line item and it needs to be restored
+        // make this generic if it works
+        if (isset($array['sotransaction'])) {
+            foreach ($array['sotransaction'] as $key => $txn) {
+                if (isset($txn['sotransitems']['sotransitem'])) {
+                    if (!is_numeric(key($txn['sotransitems']['sotransitem']))) {
+                        $array['sotransaction'][$key]['sotransitems']['sotransitem'] = array ($txn['sotransitems']['sotransitem']);
+                    }
+                }
+            }
+        }
         return $array;
     }
 
