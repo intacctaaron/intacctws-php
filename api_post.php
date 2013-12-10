@@ -263,6 +263,9 @@ class api_post {
 
         $xml = api_util::phpToXml('content',array($func));
         $res = api_post::post($xml, $session,$dtdVersion, true); 
+        if (self::$dryRun == true) {
+            return;
+        }
         $ret = api_post::processListResults($res, api_returnFormat::PHPOBJ, $count);
         $toReturn = null;
         if (array_key_exists($object,$ret)) {
