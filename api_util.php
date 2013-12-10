@@ -129,11 +129,14 @@ class api_util {
                 }
 
                 $firstKey = array_shift(array_keys($value));
-                if (is_array($value[$firstKey]) || count($value) > 1 ) {
+                if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
                     $_xml = self::phpToXml($node,$value) ; 
                 }
                 else {
-                    $v = $value[$firstKey];
+                    $v = "";
+                    if (isset($value[$firstKey])) {
+                        $v = $value[$firstKey];
+                    }
                     $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 }
 
