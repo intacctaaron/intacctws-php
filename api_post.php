@@ -660,6 +660,24 @@ class api_post
     }
 
     /**
+     * Run a DDS job.  Note that DDS is not GA yet
+     *
+     * @param api_session $session       connected instance of api_session
+     * @param string      $object        object on which to run the job
+     * @param string      $cloudDelivery Cloud delivery destination to which to deliver the results.
+     * @param string      $jobType       type of job: all or changes
+     * @param null        $timestamp     if changes, then the time stamp from which to pull
+     *
+     * @return String
+     */
+    public static function runDdsJob(api_session $session, $object, $cloudDelivery, $jobType, $timestamp=null)
+    {
+        $runXml = "<runDdsJob><object>$object</object><cloudDelivery>$cloudDelivery</cloudDelivery><jobType>$jobType</jobType><timeStamp>$timestamp</timeStamp></runDdsJob>";
+        $response = api_post::post($runXml, $session);
+        return $response;
+    }
+
+    /**
      * Internal method for posting the invocation to the Intacct XML Gateway
      *
      * @param String      $xml        the XML request document
