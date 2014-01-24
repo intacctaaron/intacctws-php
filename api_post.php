@@ -853,7 +853,7 @@ class api_post {
         curl_setopt( $ch, CURLOPT_HEADER, 0 );
         curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1 );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-        curl_setopt( $ch, CURLOPT_TIMEOUT, 600 ); //Seconds until timeout
+        curl_setopt( $ch, CURLOPT_TIMEOUT, 6000 ); //Seconds until timeout
         curl_setopt( $ch, CURLOPT_POST, 1 );
         curl_setopt( $ch, CURLOPT_VERBOSE, false );
         // TODO: Research and correct the problem with CURLOPT_SSL_VERIFYPEER
@@ -1072,6 +1072,15 @@ class api_post {
                 if (isset($txn['sotransitems']['sotransitem'])) {
                     if (!is_numeric(key($txn['sotransitems']['sotransitem']))) {
                         $array['sotransaction'][$key]['sotransitems']['sotransitem'] = array ($txn['sotransitems']['sotransitem']);
+                    }
+                }
+            }
+        }
+        if (isset($array['arpayment'])) {
+            foreach ($array['arpayment'] as $key => $txn) {
+                if (isset($txn['lineitems']['lineitem'])) {
+                    if (!is_numeric(key($txn['lineitems']['lineitem']))) {
+                        $array['arpayment'][$key]['lineitems']['lineitem'] = array ($txn['lineitems']['lineitem']);
                     }
                 }
             }
