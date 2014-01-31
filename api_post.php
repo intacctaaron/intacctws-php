@@ -46,6 +46,9 @@ class api_post
     const DEFAULT_PAGESIZE = 1000;
     const DEFAULT_MAXRETURN = 100000;
 
+    const DDS_JOBTYPE_ALL = 'all';
+    const DDS_JOBTYPE_CHANGE = 'change';
+
     /**
      * Read one or more records by their key.  For platform objects, the key is the 'id' field.
      * For standard objects, the key is the 'recordno' field.  Results are returned as a php structured array
@@ -675,6 +678,45 @@ class api_post
         $runXml = "<runDdsJob><object>$object</object><cloudDelivery>$cloudDelivery</cloudDelivery><jobType>$jobType</jobType><timeStamp>$timestamp</timeStamp></runDdsJob>";
         $response = api_post::post($runXml, $session);
         return $response;
+    }
+
+    /**
+     * Get a list of objects enabled for DDS.  Note DDS is not enabled yet
+     *
+     * @param api_session $session Instance of connected api_session
+     *
+     * @return array List of objects supported by DDS
+     */
+    public static function getDdsObjects(api_session $session)
+    {
+        $runXml = "<getDdsObjects/>";
+        $response = api_post::post($runXml, $session);
+        api_post::validateReadResults($response);
+        $simpleXml = simplexml_load_string($response);
+        $return = array();
+        $objects = $simpleXml->operation->result->data->DdsObjects->Objects;
+        foreach ($objects->Object as $object) {
+            $return[] = (string)$object;
+        }
+        return $return;
+    }
+
+    /**
+     * Get the DDL for creating the table for an object.  Note, DDS is not enabled yet
+     *
+     * @param api_session $session instance of connected api_session
+     * @param string      $object  Name of object for which to retrieve DDS
+     *
+     * @return String
+     */
+    public static function getDdsDdl(api_session $session, $object)
+    {
+        $runXml = "<getDdsDdl><object>$object</object></getDdsDdl>";
+        $response = api_post::post($runXml, $session);
+        api_post::validateReadResults($response);
+        $simpleXml = simplexml_load_string($response);
+        $ddl = (string)$simpleXml->operation->result->data->DdsDdl->Ddl;
+        return $ddl;
     }
 
     /**
