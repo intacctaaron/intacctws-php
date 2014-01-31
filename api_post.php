@@ -675,7 +675,17 @@ class api_post
      */
     public static function runDdsJob(api_session $session, $object, $cloudDelivery, $jobType, $timestamp=null)
     {
-        $runXml = "<runDdsJob><object>$object</object><cloudDelivery>$cloudDelivery</cloudDelivery><jobType>$jobType</jobType><timeStamp>$timestamp</timeStamp></runDdsJob>";
+        if ($jobType == self::DDS_JOBTYPE_ALL) {
+            $tsString = '';
+        } else if ($jobType == self::DDS_JOBTYPE_CHANGE) {
+            $tsString = "<timeStamp>" . date("c", strtotime($timestamp)) . "</timeStamp";
+        } else {
+            throw new Exception ("Invalid job type.  Use one of the DDS_JOBTYPE* constants.");
+        }
+
+        $runXml
+            = "<runDdsJob><object>$object</object><cloudDelivery>$cloudDelivery</cloudDelivery>
+            <jobType>$jobType</jobType>$tsString</runDdsJob>";
         $response = api_post::post($runXml, $session);
         return $response;
     }
