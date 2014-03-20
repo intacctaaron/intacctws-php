@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  * Copyright (c) 2013, Intacct OpenSource Initiative
  * All rights reserved.
@@ -30,7 +30,7 @@
  * Structure of filters to pass to the readView method
  */
 class api_viewFilters {
-  
+
     public $filters;
     public $operator;
 
