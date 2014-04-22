@@ -30,6 +30,7 @@ require_once 'api_viewFilter.php';
 require_once 'api_viewFilters.php';
 require_once 'api_returnFormat.php';
 require_once 'api_objDef.php';
+require_once 'api_ddsJob.php';
 
 /**
  * Class api_post
@@ -687,7 +688,13 @@ class api_post
             = "<runDdsJob><object>$object</object><cloudDelivery>$cloudDelivery</cloudDelivery>
             <jobType>$jobType</jobType>$tsString</runDdsJob>";
         $response = api_post::post($runXml, $session);
-        return $response;
+        // for now, call read on the key
+        $responseXml = simplexml_load_string($response);
+        /**
+         * @var simpleXmlElement $responseKey;
+         */
+        $ddsJob = new api_ddsJob($responseXml->operation->result->data->ddsjob);
+        return $ddsJob;
     }
 
     /**
