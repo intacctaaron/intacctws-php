@@ -48,7 +48,8 @@ class api_session
         <password>{5%}</password>
         <controlid>foobar</controlid>
         <uniqueid>false</uniqueid>
-        <dtdversion>3.0</dtdversion>
+        <dtdversion>2.1</dtdversion>
+        {6%}
     </control>
     <operation>
         <authentication>";
@@ -69,7 +70,13 @@ class api_session
 
     const XML_SESSIONID = "<sessionid>{1%}</sessionid>";
 
-    const DEFAULT_LOGIN_URL = "https://dev01.intacct.com/users/aharris/getUserPerms/xml/xmlgw.phtml";
+    const DEFAULT_LOGIN_URL = "https://api.intacct.com/ia/xml/xmlgw.phtml";
+
+    private $responseValidation;
+
+    const VALIDATE_NONE = 'none';
+    const VALIDATE_SERVER = 'server';
+    const VALIDATE_CLIENT = 'client';
 
 
     /**
@@ -98,6 +105,12 @@ class api_session
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
 
+        if (is_null($this->responseValidation)) {
+            $xml = str_replace("{6%}", "", $xml);
+        } else {
+            $xml = str_replace("{6%}", "<validate>" . $this->responseValidation . "</validate>", $xml);
+        }
+
         if ($entityType == 'location') {
             $xml = str_replace("{%entityid%}", "<locationid>$entityId</locationid>", $xml);
         } else if ($entityType == 'client') {
@@ -119,18 +132,20 @@ class api_session
      * @param String $senderPassword Your Intacct Partner password
      * @param null   $entityType     location or client
      * @param null   $entityId       ID of the location or client
+     * @param null   $loginUrl       Optional login URL if you are not posting to production
      *
      * @return null
      */
     public function connectCredentials(
-        $companyId, $userId, $password, $senderId, $senderPassword, $entityType=null, $entityId=null
+        $companyId, $userId, $password, $senderId, $senderPassword, $entityType=null, $entityId=null, $loginUrl=null
     ) {
 
         $xml = $this->buildHeaderXML(
             $companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId
         );
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $loginUrl = (!is_null($loginUrl)) ? $loginUrl : self::DEFAULT_LOGIN_URL;
+        $response = api_post::execute($xml, $loginUrl);
 
         self::validateConnection($response);
 
@@ -201,6 +216,12 @@ class api_session
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
 
+        if (is_null($this->getResponseValidation())) {
+            $xml = str_replace("{%6}", "", $xml);
+        } else {
+            $xml = str_replace("{%6}", "<validate>" . $this->getResponseValidation() . "</validate>", $xml);
+        }
+
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
         self::validateConnection($response);
@@ -213,6 +234,37 @@ class api_session
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
     }
+
+    /**
+     * Set the ResponseValidation property
+     *
+     * @param mixed $responseValidation One of the VALIDATE* constants
+     *
+     * @return null
+     * @throws Exception
+     */
+    public function setResponseValidation($responseValidation)
+    {
+        $validValues = array(
+            self::VALIDATE_SERVER, self::VALIDATE_CLIENT, self::VALIDATE_NONE
+        );
+        if (!in_array($responseValidation, $validValues)) {
+            throw new Exception("$responseValidation is invalid.  Use one of the class constants.");
+        }
+        $this->responseValidation = $responseValidation;
+    }
+
+    /**
+     * Get the response validation value
+     *
+     * @return mixed
+     */
+    public function getResponseValidation()
+    {
+        return $this->responseValidation;
+    }
+
+
 
     /**
      * Validate the repsonse from Intacct to see if we successfully created a session

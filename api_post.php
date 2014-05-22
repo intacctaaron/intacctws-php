@@ -798,6 +798,7 @@ class api_post
         <controlid>foobar</controlid>
         <uniqueid>false</uniqueid>
         <dtdversion>{$dtdVersion}</dtdversion>
+        {%validate}
     </control>
     <operation transaction='{$transaction}'>
         <authentication>
@@ -816,6 +817,13 @@ class api_post
     "</operation>
 </request>";
 
+        if (is_null($session->getResponseValidation())) {
+            $templateHead = str_replace("{%validate}", '', $templateHead);
+        } else {
+            $templateHead = str_replace(
+                "{%validate}", '<validate>' . $session->getResponseValidation() . '</validate>', $templateHead
+            );
+        }
 
         if ($multiFunc) {
             $xml = $templateHead . $xml . $templateFoot;
