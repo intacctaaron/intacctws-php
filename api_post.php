@@ -31,6 +31,7 @@ require_once 'api_viewFilters.php';
 require_once 'api_returnFormat.php';
 require_once 'api_objDef.php';
 require_once 'api_ddsJob.php';
+require_once 'api_userPermissions.php';
 
 /**
  * Class api_post
@@ -92,7 +93,9 @@ class api_post
     public static function create($records, api_session $session)
     {
 
-        if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
+        if (count($records) > 100) {
+            throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
+        }
 
         // Convert the record into an xml structure
         $createXml = "<create>";
@@ -126,7 +129,9 @@ class api_post
      */
     public static function update($records, api_session $session)
     {
-        if (count($records) > 100) throw new Exception("Attempting to update more than 100 records.");
+        if (count($records) > 100) {
+            throw new Exception("Attempting to update more than 100 records.");
+        }
 
         // convert the $records array into an xml structure
         $updateXml = "<update>";
@@ -367,8 +372,10 @@ class api_post
      * @return Mixed Depends on the return format argument.  Returns a string unless phpobj is the return format
      * in which case returns an array
      */
-    public static function readView($viewName, api_session $session, api_viewFilters $filterObj=null, $maxRecords = self::DEFAULT_MAXRETURN, $returnFormat = api_returnFormat::PHPOBJ)
-    {
+    public static function readView(
+        $viewName, api_session $session, api_viewFilters $filterObj=null, $maxRecords = self::DEFAULT_MAXRETURN,
+        $returnFormat = api_returnFormat::PHPOBJ
+    ) {
 
         $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
 
@@ -427,7 +434,9 @@ class api_post
                     // for now, pass the exception on
                     Throw new Exception($ex);
                 }
-                if ($pageCount < $pageSize || $count >= $maxRecords) break;
+                if ($pageCount < $pageSize || $count >= $maxRecords) {
+                    break;
+                }
             }
         }
         return $$returnFormat;
@@ -471,7 +480,7 @@ class api_post
         api_post::validateReadResults($response);
 
 
-        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
+        $phpobj = array(); $csv = ''; $json = ''; $xml = '';
         $$returnFormat = self::processReadResults($response, $thiscount, $returnFormat);
 
         $totalcount = $thiscount;
@@ -737,6 +746,29 @@ class api_post
     }
 
     /**
+     * Get the effective list of permissions for a user, whether the company is configured for user-specific permissions
+     * or role-based permissions
+     *
+     * @param string      $userId The User ID
+     * @param api_session $sess   Connected api_session object
+     *
+     * @throws Exception
+     * @return api_userPermissions
+     */
+    public static function getUserPermissions($userId, api_session $sess)
+    {
+        $runXml = "<getUserPermissions><userId>$userId</userId></getUserPermissions>";
+        $response = api_post::post($runXml, $sess, "2.1");
+        $respElem = new simpleXmlElement($response);
+        if ($respElem === false) {
+            throw new Exception("Invalid XML response in getUserPermissions.");
+        }
+
+        $permsElem = $respElem->operation->result->data;
+        return new api_userPermissions($permsElem);
+    }
+
+    /**
      * Internal method for posting the invocation to the Intacct XML Gateway
      *
      * @param String      $xml        the XML request document
@@ -756,39 +788,6 @@ class api_post
         $senderPassword = $session->senderPassword;
 
         $transaction = ( $session->transaction ) ? 'true' : 'false' ;
-
-        /* 
-        $templateHead =
-"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<request>
-    <control>
-        <senderid>{2%}</senderid>
-        <password>{3%}</password>
-        <controlid>foobar</controlid>
-        <uniqueid>false</uniqueid>
-        <dtdversion>{4%}</dtdversion>
-    </control>
-    <operation transaction='{5%}'>
-        <authentication>
-            <sessionid>{1%}</sessionid>
-        </authentication>
-        <content>
-            <function controlid=\"foobar\">";
-
-        $templateFoot =
-            "</function>
-        </content>
-    </operation>
-</request>";
-
-        $xml = $templateHead . $xml . $templateFoot;
-        $xml = str_replace("{1%}", $sessionId, $xml);
-        $xml = str_replace("{2%}", $senderId, $xml);
-        $xml = str_replace("{3%}", $senderPassword, $xml);
-        $xml = str_replace("{4%}", $dtdVersion, $xml);
-        $xml = str_replace("{5%}", $transaction, $xml);
-
-        */
 
         $templateHead =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -913,13 +912,12 @@ class api_post
         $simpleXml = @simplexml_load_string($response);
 
         if ($simpleXml === false) {
-            return;
+            return null;
         }
         libxml_use_internal_errors(false);
 
         // look for a failure in the operation, but not the result
         if (isset($simpleXml->operation->errormessage)) {
-            $error = $simpleXml->operation->errormessage->error[0];
             $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->operation->errormessage));
         }
 
@@ -1004,7 +1002,6 @@ class api_post
             throw new Exception("Invalid XML response: \n " . var_export($response, true));
         }
 
-        $objects = array();
         // check to see if there's an error in the response
         $status = $simpleXml->operation->result->status;
         if ($status != "success") {
@@ -1082,12 +1079,10 @@ class api_post
         $success = $xml->operation->result->status;
         if ($success != "success") {
             throw new Exception("Get List failed");
-            return;
         }
         
         if ($returnFormat != api_returnFormat::PHPOBJ) {
             throw new Exception("Only PHPOBJ is supported for returnFormat currently.");
-            return;
         }
 
         $json = json_encode($xml->operation->result->data);

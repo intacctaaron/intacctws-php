@@ -202,11 +202,11 @@ class api_util
     /**
      * Convert a error object into nice text
      *
-     * @param Object $error simpleXmlObject
+     * @param simpleXmlElement $error simpleXmlObject
      *
      * @return string formatted error message
      */
-    public static function xmlErrorToString($error)
+    public static function xmlErrorToString(simpleXmlElement $error)
     {
 
         if (!is_object($error)) {

@@ -69,7 +69,7 @@ class api_session
 
     const XML_SESSIONID = "<sessionid>{1%}</sessionid>";
 
-    const DEFAULT_LOGIN_URL = "https://www.intacct.com/ia/xml/xmlgw.phtml";
+    const DEFAULT_LOGIN_URL = "https://dev01.intacct.com/users/aharris/getUserPerms/xml/xmlgw.phtml";
 
 
     /**
