@@ -683,7 +683,7 @@ class api_post {
      * @param Integer $max [optional] Maximum number of records to delete.  Default is 10000
      * @return Integer count of records deleted
      */
-    public static function deleteByQuery($object, $query, $key_field, api_session $session, $max=10000) {
+    public static function deleteByQuery($object, $query, $key_field, api_session $session, $max=100000) {
 
         $num_per_func= 100;
         // read all the record ids for the given object
@@ -879,7 +879,7 @@ class api_post {
      * @param String $response The XML response document
      * @throws Exception
      */
-    public static function findResponseErrors($response) {
+    public static function findResponseErrors($response,$multi=false) {
 
         $errorArray = array();
 
@@ -896,7 +896,7 @@ class api_post {
         // look for a failure in the operation, but not the result
         if (isset($simpleXml->operation->errormessage)) {
             $error = $simpleXml->operation->errormessage->error[0];
-            $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->operation->errormessage));
+            $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->operation->errormessage,$multi));
         }
 
         // if we didn't get an operation, the request failed and we should raise an exception
@@ -904,14 +904,14 @@ class api_post {
         // did the method invocation fail?
         if (!isset($simpleXml->operation)) {
             if (isset($simpleXml->errormessage)) {
-                $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->errormessage));
+                $errorArray[] = array ( 'desc' =>  api_util::xmlErrorToString($simpleXml->errormessage,$multi));
             }
         }
         else {
             $results = $simpleXml->xpath('/response/operation/result');
             foreach ($results as $result) {
                 if ((string)$result->status == "failure") {
-                    $errorArray[] = array ( 'controlid' => (string)$result->controlid, 'desc' =>  api_util::xmlErrorToString($result->errormessage));
+                    $errorArray[] = array ( 'controlid' => (string)$result->controlid, 'desc' =>  api_util::xmlErrorToString($result->errormessage,$multi));
                 }
             }
         }

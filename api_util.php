@@ -196,22 +196,29 @@ class api_util {
      * @param Object $error simpleXmlObject
      * @return string formatted error message
      */
-    public static function xmlErrorToString($error) {
+    public static function xmlErrorToString($error,$multi=false) {
 
         if (!is_object($error)) {
             return "Malformed error: " . var_export($error, true);
         }
 
-        $error = $error->error[0];
-        if (!is_object($error)) {
-            return "Malformed error: " . var_export($error, true);
-        }
+        // show just the first error
+        //$error = $error->error[0];
+        foreach ($error->error as $error) {
+            if (!is_object($error)) {
+                return "Malformed error: " . var_export($error, true);
+            }
 
-        $errorno = is_object($error->errorno) ? (string)$error->errorno : ' ';
-        $description = is_object($error->description) ? (string)$error->description : ' ';
-        $description2 = is_object($error->description2) ? (string)$error->description2 : ' ';
-        $correction = is_object($error->correction) ? (string)$error->correction : ' ';
-        return "$errorno: $description: $description2: $correction";
+            $errorno = is_object($error->errorno) ? (string)$error->errorno : ' ';
+            $description = is_object($error->description) ? (string)$error->description : ' ';
+            $description2 = is_object($error->description2) ? (string)$error->description2 : ' ';
+            $correction = is_object($error->correction) ? (string)$error->correction : ' ';
+            $error_string .= "$errorno: $description: $description2: $correction\n";
+            if ($multi === false) {
+                break;
+            }
+        }
+        return $error_string;
     }
 
 
