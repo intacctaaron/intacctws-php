@@ -24,12 +24,21 @@ class api_objDef {
         $this->Description = (string)$simpleXml->Attributes->Description;
 
         $fields = $simpleXml->Fields;
-
         $this->Fields = array();
+
         foreach($fields->Field as $field) {
             $fieldDef = new api_fieldDef($field);
             $this->Fields[$fieldDef->Name] = $fieldDef;
         }
+    }
+
+    public function get_field_array()
+    {
+        $array = array();
+        foreach ($this->Fields as $field) {
+            $array[] = (string)$field->Name;
+        }
+        return $array;
     }
 
 }
