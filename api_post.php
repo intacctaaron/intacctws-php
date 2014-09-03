@@ -1085,6 +1085,16 @@ class api_post {
                 }
             }
         }
+
+        if (isset($array['recursotransaction'])) {
+            foreach ($array['recursotransaction'] as $key => $txn) {
+                if (isset($txn['recursotransitems']['recursotransitem'])) {
+                    if (!is_numeric(key($txn['recursotransitems']['recursotransitem']))) {
+                        $array['recursotransaction'][$key]['recursotransitems']['recursotransitem'] = array ($txn['recursotransitems']['recursotransitem']);
+                    }
+                }
+            }
+        }
         return $array;
     }
 

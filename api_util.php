@@ -103,7 +103,9 @@ class api_util {
             return "<$key>$values</$key>";
         }
 
-        if (!is_numeric(array_shift(array_keys($values)))) {
+        $temp1 = array_keys($values);
+        $temp2 = array_shift($temp1);
+        if (!is_numeric($temp2)) {
             $xml = "<" . $key . ">";
         }
         foreach($values as $node => $value) {
@@ -155,7 +157,9 @@ class api_util {
                 }
             }
         }
-        if (!is_numeric(array_shift(array_keys($values)))) {
+        $temp1 = array_keys($values);
+        $temp2 = array_shift($temp1);
+        if (!is_numeric($temp2)) {
             $xml .= "</" . $key . ">";
         }
         return $xml;
