@@ -217,9 +217,9 @@ class api_session
         $xml = str_replace("{5%}", $senderPassword, $xml);
 
         if (is_null($this->getResponseValidation())) {
-            $xml = str_replace("{%6}", "", $xml);
+            $xml = str_replace("{6%}", "", $xml);
         } else {
-            $xml = str_replace("{%6}", "<validate>" . $this->getResponseValidation() . "</validate>", $xml);
+            $xml = str_replace("{6%}", "<validate>" . $this->getResponseValidation() . "</validate>", $xml);
         }
 
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
