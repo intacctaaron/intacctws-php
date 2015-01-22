@@ -31,6 +31,7 @@ require_once 'api_viewFilters.php';
 require_once 'api_returnFormat.php';
 require_once 'api_objDef.php';
 require_once 'api_ddsJob.php';
+require_once 'api_ddsFileConfiguration.php';
 require_once 'api_userPermissions.php';
 
 /**

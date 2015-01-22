@@ -230,6 +230,7 @@ class api_ddsJob
             return null;
         }
 
+        date_default_timezone_set("UTC");
         if (strtotime($dateTime === false)) {
             throw new Exception("Invalid DateTime $dateTime");
         }
