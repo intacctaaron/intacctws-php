@@ -689,7 +689,7 @@ class api_post
         if ($jobType == self::DDS_JOBTYPE_ALL) {
             $tsString = '';
         } else if ($jobType == self::DDS_JOBTYPE_CHANGE) {
-            $tsString = "<timeStamp>" . date("c", strtotime($timestamp)) . "</timeStamp";
+            $tsString = "<timeStamp>" . date("c", strtotime($timestamp)) . "</timeStamp>";
         } else {
             throw new Exception ("Invalid job type.  Use one of the DDS_JOBTYPE* constants.");
         }
