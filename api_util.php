@@ -196,22 +196,33 @@ class api_util {
      * @param Object $error simpleXmlObject
      * @return string formatted error message
      */
-    public static function xmlErrorToString($error) {
+    public static function xmlErrorToString($errors) {
 
-        if (!is_object($error)) {
-            return "Malformed error: " . var_export($error, true);
+        if (!is_object($errors)) {
+            return "Malformed error: " . var_export($errors, true);
         }
 
-        $error = $error->error[0];
-        if (!is_object($error)) {
-            return "Malformed error: " . var_export($error, true);
+        $error = $errors->error[0];
+        if (!is_object($errors)) {
+            return "Malformed error: " . var_export($errors, true);
         }
 
-        $errorno = is_object($error->errorno) ? (string)$error->errorno : ' ';
-        $description = is_object($error->description) ? (string)$error->description : ' ';
-        $description2 = is_object($error->description2) ? (string)$error->description2 : ' ';
-        $correction = is_object($error->correction) ? (string)$error->correction : ' ';
-        return "$errorno: $description: $description2: $correction";
+        $all_errors = "";
+        foreach ($errors->error as $err) {
+            //$errorno = is_object($err->errorno) ? (string)$err->errorno : ' ';
+            //$description = is_object($err->description) ? (string)$err->description : ' ';
+            $description2 = is_object($err->description2) ? (string)$err->description2 : ' ';
+            //$correction = is_object($err->correction) ? (string)$err->correction : ' ';
+            $all_errors .= "$description2.\n";
+
+        }
+
+        //$errorno = is_object($error->errorno) ? (string)$error->errorno : ' ';
+        //$description = is_object($error->description) ? (string)$error->description : ' ';
+        //$description2 = is_object($error->description2) ? (string)$error->description2 : ' ';
+        //$correction = is_object($error->correction) ? (string)$error->correction : ' ';
+        //return "$errorno: $description: $description2: $correction";
+        return $all_errors;
     }
 
 
