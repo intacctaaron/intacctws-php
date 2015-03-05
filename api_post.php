@@ -951,7 +951,7 @@ class api_post {
         else { 
             $results = $simpleXml->operation->result;
             foreach ($results as $res) {
-                if ($res->status == "failure") {
+                if ($res->status == "failure" || $res->status == "aborted") {
                     throw new Exception("[Error] " . api_util::xmlErrorToString($res->errormessage));
                 }
             }

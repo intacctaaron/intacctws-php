@@ -128,15 +128,25 @@ class api_util {
                     }
                 }
 
+                //$firstKey = array_shift(array_keys($value));
+                //if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
+                //    $_xml = self::phpToXml($node,$value) ; 
+                //}
+                //else {
+                //    $v = "";
+                //    if (isset($value[$firstKey])) {
+                //        $v = $value[$firstKey];
+                //    }
+                //    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
+                //}
+                //
                 $firstKey = array_shift(array_keys($value));
-                if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
+                if (is_array($value[$firstKey]) || count($value) > 0 ) {
                     $_xml = self::phpToXml($node,$value) ; 
                 }
                 else {
-                    $v = "";
-                    if (isset($value[$firstKey])) {
-                        $v = $value[$firstKey];
-                    }
+                    $_xml = self::phpToXml($node,$value) ; 
+                    $v = $value[$firstKey];
                     $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 }
 
