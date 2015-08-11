@@ -115,7 +115,8 @@ class api_util
             return "<$key>$values</$key>";
         }
 
-        if (!is_numeric(array_shift(array_keys($values)))) {
+        $keys = array_keys($values);
+        if (!is_numeric(array_shift($keys))) {
             $xml = "<" . $key . ">";
         }
         foreach ($values as $node => $value) {
@@ -140,11 +141,12 @@ class api_util
                     }
                 }
 
-                $firstKey = array_shift(array_keys($value));
-                if (is_array($value[$firstKey]) || count($value) > 1 ) {
+                $valueKeys = array_keys($value);
+                $firstKey = array_shift($valueKeys);
+                if ((isset($value[$firstKey]) && is_array($value[$firstKey])) || count($value) > 1 ) {
                     $_xml = self::phpToXml($node, $value);
                 } else {
-                    $v = $value[$firstKey];
+                    $v = isset($value[$firstKey]) ? $value[$firstKey] : '';
                     $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 }
 
@@ -157,7 +159,8 @@ class api_util
                 $xml .= "<" . $node . $attrString . ">" . htmlspecialchars($value) . "</" . $node . ">";
             }
         }
-        if (!is_numeric(array_shift(array_keys($values)))) {
+        $keys = array_keys($values);
+        if (!is_numeric(array_shift($keys))) {
             $xml .= "</" . $key . ">";
         }
         return $xml;
