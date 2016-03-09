@@ -440,8 +440,10 @@ class api_post {
         $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>$returnFormatArg</returnFormat>";
         $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</readByQuery>";
+        dbg($readXml);
 
         $response = api_post::post($readXml,$session);
+        dbg($response);
         if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';

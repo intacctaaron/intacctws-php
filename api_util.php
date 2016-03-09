@@ -211,8 +211,8 @@ class api_util {
      * @return string formatted error message
      */
     public static function xmlErrorToString($error,$multi=false) {
-        if (!is_object($errors)) {
-            return "Malformed error: " . var_export($errors, true);
+        if (!is_object($error)) {
+            return "Malformed error: " . var_export($error, true);
         }
         // show just the first error
         //$error = $error->error[0];
