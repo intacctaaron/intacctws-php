@@ -135,7 +135,7 @@ class api_util
                             $aval  = $v;
                             //$attrs = explode(':', substr($v,1));
                             //$attrString .= $pad . $attrs[0].'="'.$attrs[1].'" ';
-                            $attrString .= $pad . $aname.'="'.$aval.'" ';
+                            $attrString .= $pad . $aname . '="' . htmlspecialchars($aval) . '" ';
                             unset($value[$_k]);
                         }
                     }
