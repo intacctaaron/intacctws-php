@@ -945,6 +945,7 @@ class api_post {
         if (!isset($simpleXml->operation)) {
 
             if (isset($simpleXml->errormessage)) {
+                    dbg("HEY1: " . $simpleXml->errormessage);
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
@@ -952,7 +953,8 @@ class api_post {
             $results = $simpleXml->operation->result;
             foreach ($results as $res) {
                 if ($res->status == "failure" || $res->status == "aborted") {
-                    throw new Exception("[Error] " . api_util::xmlErrorToString($res->errormessage));
+                    $msg = api_util::xmlErrorToString($res->errormessage);
+                    throw new Exception("[Error] " . $msg);
                 }
             }
         }
