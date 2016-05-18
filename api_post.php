@@ -38,6 +38,30 @@ class api_post {
     }
 
     /**
+     * ReadDocument one or more records by their key.  For platform objects, the key is the 'id' field.
+     * For standard objects, the key is the 'recordno' field.  Results are returned as a php structured array
+     * @param String $object the integration name for the object
+     * @param String $docparid the transaction type
+     * @param String $id a comma separated list of keys for each record you wish to read
+     * @param String $fields a comma separated list of fields to return
+     * @param \api_session|Object $session an instance of the php_session object
+     * @return Array of records
+     */
+    public static function readDocument($object, $docparid, $id, $fields, api_session $session) {
+
+        $readXml = "<read><object>$object</object><keys>$id</keys><fields>$fields</fields><returnFormat>csv</returnFormat><docparid>$docparid</docparid></read>";
+        $objCsv = api_post::post($readXml, $session);
+        api_post::validateReadResults($objCsv);
+        $objAry = api_util::csvToPhp($objCsv);
+        if (count(explode(",",$id)) > 1) {
+            return $objAry;
+        }
+        else {
+            return $objAry[0];
+        }
+    }
+
+    /**
      * Create one or more records.  Object types can be mixed and can be either standard or custom.
      * Check the developer documentation to see which standard objects are supported in this method
      * @param Array $records is an array of records to create.  Follow the pattern
@@ -635,6 +659,86 @@ class api_post {
         $objCsv = api_post::post($readXml, $session);
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
+        return $objAry;
+    }
+
+    /**
+     * Reads all the records related to a source record through a named relationship.
+     * @param String $object the integration name of the object
+     * @param String $keys a comma separated list of 'id' values of the source records from which you want to read related records
+     * @param String $relation the name of the relationship.  This will determine the type of object you are reading
+     * @param String $fields a comma separated list of fields to return
+     * @param api_session $session
+     * @return Array of objects
+     */
+    public static function readReport($report, api_session $session, $arguments=null, $waitTime=0, $pageSize=100) {
+        $max_try = 100;
+        $try = 0;
+        $returnFormat = "csv";
+
+        if (is_array($arguments) ) {
+            $argxml= "<arguments>";
+            foreach ($arguments as $key => $arg) {
+                $argxml.= "<$key>$arg</$key>";
+            }
+            $argxml .= "</arguments>";
+        }
+        $readXml = "<readReport><report>$report</report><returnFormat>csv</returnFormat><waitTime>$waitTime</waitTime>$argxml<pagesize>$pagesize</pagesize></readReport>";
+        dbg($readXml);
+        $objCsv = api_post::post($readXml, $session);
+        api_post::validateReadResults($objCsv);
+        $objAry = api_util::csvToPhp($objCsv);
+
+        if (is_array($objAry) && count($objAry) == 1) {
+            $id = $objAry[0]['REPORTID'];
+            do {
+                $readXml = "<readMore><reportId>$id</reportId></readMore>";
+                try {
+                    $response = api_post::post($readXml, $session);
+                    dbg("READMORE:");
+                    dbg($response);
+                    dbg("TRIMMED:");
+                    dbg(trim($response));
+                    if (trim($response) == "") {
+                        return array();
+                    }
+                    api_post::validateReadResults($response);
+                    $_obj = api_util::csvToPhp($response);
+                    dbg($_obj);
+                    if (isset($_obj[0]['STATUS']) && $_obj[0]['STATUS'] == 'PENDING') {
+                        dbg("Sleeping 10, try = $try");
+                        sleep("10");
+                        $try++;
+                        continue;
+                    }
+
+                    $page = self::processReadResults($response, $returnFormat, $pageCount);
+                    $count += $pageCount;
+                    if ($returnFormat == api_returnFormat::PHPOBJ) {
+                        foreach($page as $objRec) {
+                            $phpobj[] = $objRec;
+                        }
+                    }
+                    elseif ($returnFormat == api_returnFormat::CSV) {
+                        // append all but the first row to the CSV file
+                        $page = explode("\n", $page);
+                        array_shift($page);
+                        $csv .= implode($page, "\n");
+                    }
+                    elseif ($returnFormat == api_returnFormat::XML) {
+                        // just add the xml string
+                        $xml .= $page;
+                    }
+                }
+                catch (Exception $ex) {
+                    // for now, pass the exception on
+                    Throw new Exception($ex);
+                }
+                if ($pageCount < $pageSize || $count >= $maxRecords) break;
+            } while ($try < $max_try); 
+
+            dbg("FINISHED LOOP");
+        }
         return $objAry;
     }
 

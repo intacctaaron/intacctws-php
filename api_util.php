@@ -175,7 +175,7 @@ class api_util {
         return $xml;
     }
 
-    /**                                                                                                                              
+    /**                                                                                                                             
      * Convert a CSV string result into a php array.                                                                                 
      * This work for Intacct API results.  Not a generic method                                                                      
      */
@@ -211,11 +211,12 @@ class api_util {
      * @return string formatted error message
      */
     public static function xmlErrorToString($error,$multi=false) {
-        if (!is_object($errors)) {
-            return "Malformed error: " . var_export($errors, true);
+        if (!is_object($error)) {
+            return "Malformed error: " . var_export($error, true);
         }
         // show just the first error
         //$error = $error->error[0];
+        $error_string = "";
         foreach ($error->error as $error) {
             if (!is_object($error)) {
                 return "Malformed error: " . var_export($error, true);
