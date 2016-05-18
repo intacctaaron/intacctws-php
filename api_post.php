@@ -464,8 +464,10 @@ class api_post {
         $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>$returnFormatArg</returnFormat>";
         $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</readByQuery>";
+        dbg($readXml);
 
         $response = api_post::post($readXml,$session);
+        dbg($response);
         if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
@@ -1049,6 +1051,7 @@ class api_post {
         if (!isset($simpleXml->operation)) {
 
             if (isset($simpleXml->errormessage)) {
+                    dbg("HEY1: " . $simpleXml->errormessage);
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
@@ -1056,7 +1059,8 @@ class api_post {
             $results = $simpleXml->operation->result;
             foreach ($results as $res) {
                 if ($res->status == "failure" || $res->status == "aborted") {
-                    throw new Exception("[Error] " . api_util::xmlErrorToString($res->errormessage));
+                    $msg = api_util::xmlErrorToString($res->errormessage);
+                    throw new Exception("[Error] " . $msg);
                 }
             }
         }
