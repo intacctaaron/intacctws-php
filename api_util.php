@@ -103,7 +103,9 @@ class api_util {
             return "<$key>$values</$key>";
         }
 
-        if (!is_numeric(array_shift(array_keys($values)))) {
+        $temp1 = array_keys($values);
+        $temp2 = array_shift($temp1);
+        if (!is_numeric($temp2)) {
             $xml = "<" . $key . ">";
         }
         foreach($values as $node => $value) {
@@ -128,15 +130,25 @@ class api_util {
                     }
                 }
 
+                //$firstKey = array_shift(array_keys($value));
+                //if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
+                //    $_xml = self::phpToXml($node,$value) ; 
+                //}
+                //else {
+                //    $v = "";
+                //    if (isset($value[$firstKey])) {
+                //        $v = $value[$firstKey];
+                //    }
+                //    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
+                //}
+                //
                 $firstKey = array_shift(array_keys($value));
-                if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
+                if (is_array($value[$firstKey]) || count($value) > 0 ) {
                     $_xml = self::phpToXml($node,$value) ; 
                 }
                 else {
-                    $v = "";
-                    if (isset($value[$firstKey])) {
-                        $v = $value[$firstKey];
-                    }
+                    $_xml = self::phpToXml($node,$value) ; 
+                    $v = $value[$firstKey];
                     $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 }
 
@@ -155,13 +167,15 @@ class api_util {
                 }
             }
         }
-        if (!is_numeric(array_shift(array_keys($values)))) {
+        $temp1 = array_keys($values);
+        $temp2 = array_shift($temp1);
+        if (!is_numeric($temp2)) {
             $xml .= "</" . $key . ">";
         }
         return $xml;
     }
 
-    /**                                                                                                                              
+    /**                                                                                                                             
      * Convert a CSV string result into a php array.                                                                                 
      * This work for Intacct API results.  Not a generic method                                                                      
      */
@@ -202,6 +216,7 @@ class api_util {
         }
         // show just the first error
         //$error = $error->error[0];
+        $error_string = "";
         foreach ($error->error as $error) {
             if (!is_object($error)) {
                 return "Malformed error: " . var_export($error, true);
