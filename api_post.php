@@ -1050,7 +1050,6 @@ class api_post {
         if (!isset($simpleXml->operation)) {
 
             if (isset($simpleXml->errormessage)) {
-                    dbg("HEY1: " . $simpleXml->errormessage);
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
