@@ -175,7 +175,7 @@ class api_util {
         return $xml;
     }
 
-    /**                                                                                                                              
+    /**                                                                                                                             
      * Convert a CSV string result into a php array.                                                                                 
      * This work for Intacct API results.  Not a generic method                                                                      
      */
@@ -203,8 +203,8 @@ class api_util {
         }
 
         return $table;
-    }
-
+    }  
+    
     /**
      * Convert a error object into nice text
      * @param Object $error simpleXmlObject
@@ -233,6 +233,7 @@ class api_util {
         }
         return $error_string;
     }
+
 
 
 }

@@ -12,7 +12,7 @@ class api_post {
     private static $dryRun;
 
     const DEFAULT_PAGESIZE = 1000;
-    const DEFAULT_MAXRETURN = 100000;
+    const DEFAULT_MAXRETURN = 200000;
 
     /**
      * Read one or more records by their key.  For platform objects, the key is the 'id' field.
@@ -465,8 +465,10 @@ class api_post {
         $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>$returnFormatArg</returnFormat>";
         $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</readByQuery>";
+        dbg($readXml);
 
         $response = api_post::post($readXml,$session);
+        dbg($response);
         if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
@@ -660,6 +662,85 @@ class api_post {
         $objCsv = api_post::post($readXml, $session);
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
+        return $objAry;
+    }
+
+    /**
+     * Reads all the records related to a source record through a named relationship.
+     * @param String $object the integration name of the object
+     * @param String $keys a comma separated list of 'id' values of the source records from which you want to read related records
+     * @param String $relation the name of the relationship.  This will determine the type of object you are reading
+     * @param String $fields a comma separated list of fields to return
+     * @param api_session $session
+     * @return Array of objects
+     */
+    public static function readReport($report, api_session $session, $arguments=null, $waitTime=0, $pageSize=100) {
+        $maxRecords = self::DEFAULT_MAXRETURN;
+        $max_try = 1000;
+        $try = 0;
+
+        if (is_array($arguments) ) {
+            $argxml= "<arguments>";
+            foreach ($arguments as $key => $arg) {
+                $argxml.= "<$key>$arg</$key>";
+            }
+            $argxml .= "</arguments>";
+        }
+        $readXml = "<readReport><report>$report</report><returnFormat>csv</returnFormat><waitTime>$waitTime</waitTime>$argxml<pagesize>$pagesize</pagesize></readReport>";
+        $objCsv = api_post::post($readXml, $session);
+        api_post::validateReadResults($objCsv);
+        $objAry = api_util::csvToPhp($objCsv);
+
+        if (is_array($objAry) && count($objAry) == 1) {
+            $id = $objAry[0]['REPORTID'];
+            do {
+                $readXml = "<readMore><reportId>$id</reportId></readMore>";
+                try {
+                    $response = api_post::post($readXml, $session);
+                    dbg("READMORE:");
+                    dbg($response);
+                    dbg("TRIMMED:");
+                    dbg(trim($response));
+                    if (trim($response) == "") {
+                        return array();
+                    }
+                    api_post::validateReadResults($response);
+                    $_obj = api_util::csvToPhp($response);
+                    dbg($_obj);
+                    if (isset($_obj[0]['STATUS']) && $_obj[0]['STATUS'] == 'PENDING') {
+                        dbg("Sleeping 10, try = $try");
+                        sleep("10");
+                        $try++;
+                        continue;
+                    }
+
+                    $page = self::processReadResults($response, $returnFormat, $pageCount);
+                    $count += $pageCount;
+                    if ($returnFormat == api_returnFormat::PHPOBJ) {
+                        foreach($page as $objRec) {
+                            $phpobj[] = $objRec;
+                        }
+                    }
+                    elseif ($returnFormat == api_returnFormat::CSV) {
+                        // append all but the first row to the CSV file
+                        $page = explode("\n", $page);
+                        array_shift($page);
+                        $csv .= implode($page, "\n");
+                    }
+                    elseif ($returnFormat == api_returnFormat::XML) {
+                        // just add the xml string
+                        $xml .= $page;
+                    }
+                }
+                catch (Exception $ex) {
+                    // for now, pass the exception on
+                    Throw new Exception($ex);
+                }
+                if ($pageCount < $pageSize || $count >= $maxRecords) break;
+            } while ($try < $max_try); 
+
+            dbg("FINISHED LOOP");
+        }
         return $objAry;
     }
 
@@ -977,7 +1058,8 @@ class api_post {
             $results = $simpleXml->operation->result;
             foreach ($results as $res) {
                 if ($res->status == "failure" || $res->status == "aborted") {
-                    throw new Exception("[Error] " . api_util::xmlErrorToString($res->errormessage));
+                    $msg = api_util::xmlErrorToString($res->errormessage);
+                    throw new Exception("[Error] " . $msg);
                 }
             }
         }
