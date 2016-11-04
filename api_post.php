@@ -38,6 +38,30 @@ class api_post {
     }
 
     /**
+     * ReadDocument one or more records by their key.  For platform objects, the key is the 'id' field.
+     * For standard objects, the key is the 'recordno' field.  Results are returned as a php structured array
+     * @param String $object the integration name for the object
+     * @param String $docparid the transaction type
+     * @param String $id a comma separated list of keys for each record you wish to read
+     * @param String $fields a comma separated list of fields to return
+     * @param \api_session|Object $session an instance of the php_session object
+     * @return Array of records
+     */
+    public static function readDocument($object, $docparid, $id, $fields, api_session $session) {
+
+        $readXml = "<read><object>$object</object><keys>$id</keys><fields>$fields</fields><returnFormat>csv</returnFormat><docparid>$docparid</docparid></read>";
+        $objCsv = api_post::post($readXml, $session);
+        api_post::validateReadResults($objCsv);
+        $objAry = api_util::csvToPhp($objCsv);
+        if (count(explode(",",$id)) > 1) {
+            return $objAry;
+        }
+        else {
+            return $objAry[0];
+        }
+    }
+
+    /**
      * Create one or more records.  Object types can be mixed and can be either standard or custom.
      * Check the developer documentation to see which standard objects are supported in this method
      * @param Array $records is an array of records to create.  Follow the pattern
@@ -94,6 +118,7 @@ class api_post {
             $updateXml = $updateXml . $objXml;
         }
         $updateXml = $updateXml . "</update>";
+        dbg($updateXml);
 
         $res = api_post::post($updateXml, $session);
         return api_post::processUpdateResults($res, $node);
