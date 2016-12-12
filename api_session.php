@@ -41,6 +41,18 @@ class api_session {
 
     const DEFAULT_LOGIN_URL = "https://api.intacct.com/ia/xml/xmlgw.phtml";
 
+    public function __toString() {
+        $temp = array (
+            'sessionId' => $this->sessionId,
+            'endPoint' => $this->endPoint,
+            'companyId' => $this->companyId,
+            'userId' => $this->userId,
+            'senderId' => $this->senderId,
+            'senderPassword' => 'REDACTED',
+            'transaction' => $this->transaction
+        );
+        return json_encode($temp);
+    }
 
     /**
      * Connect to the Intacct Web Service using a set of user credntials for a subentity
@@ -53,7 +65,7 @@ class api_session {
      * @param String $entityId The sub entity id
      * @throws Exception this method returns no value, but will raise any connection exceptions
      */
-    private function buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType = null, $entityId = null ) 
+    private function buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType = null, $entityId = null )
     {
 
         $xml = self::XML_HEADER . self::XML_LOGIN . self::XML_FOOTER;
@@ -64,13 +76,14 @@ class api_session {
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
 
+        // hack for backward compat
         if ($entityType == 'location') {
             $xml = str_replace("{%entityid%}", "<locationid>$entityId</locationid>", $xml);
-        }
-        else if ($entityType == 'client') {
+        } else if ($entityType == 'client') {
             $xml = str_replace("{%entityid%}", "<clientid>$entityId</clientid>", $xml);
-        }
-        else {
+        } else if (!empty($entityType) || !empty($entityId)) {
+            $xml = str_replace("{%entityid%}", "<clientid>$entityType</clientid><locationid>$entityId</locationid>", $xml);
+        } else {
             $xml = str_replace("{%entityid%}", "", $xml);
         }
 
@@ -88,7 +101,7 @@ class api_session {
      */
     public function connectCredentials($companyId, $userId, $password, $senderId, $senderPassword, $entityType=null, $entityId=null) {
 
-        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId); 
+        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId);
 
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
@@ -118,7 +131,7 @@ class api_session {
      */
     public function connectCredentialsEntity($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId) {
 
-        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId); 
+        $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId);
 
         $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
 
