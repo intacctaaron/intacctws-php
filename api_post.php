@@ -118,6 +118,7 @@ class api_post {
             $updateXml = $updateXml . $objXml;
         }
         $updateXml = $updateXml . "</update>";
+        dbg($updateXml);
 
         $res = api_post::post($updateXml, $session);
         return api_post::processUpdateResults($res, $node);
@@ -1050,7 +1051,6 @@ class api_post {
         if (!isset($simpleXml->operation)) {
 
             if (isset($simpleXml->errormessage)) {
-                    dbg("HEY1: " . $simpleXml->errormessage);
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
