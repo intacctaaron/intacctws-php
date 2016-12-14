@@ -17,24 +17,37 @@ class api_post {
     /**
      * Read one or more records by their key.  For platform objects, the key is the 'id' field.
      * For standard objects, the key is the 'recordno' field.  Results are returned as a php structured array
-     * @param String $object the integration name for the object
-     * @param String $id a comma separated list of keys for each record you wish to read
-     * @param String $fields a comma separated list of fields to return
-     * @param \api_session|Object $session an instance of the php_session object
+     * @param  String $object the integration name for the object
+     * @param  String $id a comma separated list of keys for each record you wish to read
+     * @param  String $fields a comma separated list of fields to return
+     * @param  \api_session|Object $session an instance of the php_session object
+     * @param  String $response_type csv (default), xml
      * @return Array of records
      */
-    public static function read($object, $id, $fields, api_session $session) {
+    public static function read($object, $id, $fields, api_session $session, $response_type = 'csv') {
 
-        $readXml = "<read><object>$object</object><keys>$id</keys><fields>$fields</fields><returnFormat>csv</returnFormat></read>";
-        $objCsv = api_post::post($readXml, $session);
-        api_post::validateReadResults($objCsv);
-        $objAry = api_util::csvToPhp($objCsv);
-        if (count(explode(",",$id)) > 1) {
-            return $objAry;
+        $readXml = "<read><object>$object</object><keys>$id</keys><fields>$fields</fields><returnFormat>$response_type</returnFormat></read>";
+        $response = api_post::post($readXml, $session);
+        api_post::validateReadResults($response);
+        switch ($response_type) {
+            case 'xml':
+                $resultRecallsArr = new SimpleXMLElement($response);
+                $result = $resultRecallsArr->operation->result->data;
+                break;
+            case 'csv':
+                $objAry = api_util::csvToPhp($response);
+                if (count(explode(",",$id)) > 1) {
+                    $result = $objAry;
+                }
+                else {
+                    $result = $objAry[0];
+                }
+                break;
+            default:
+                $result = false;
+                break;
         }
-        else {
-            return $objAry[0];
-        }
+        return $result;
     }
 
     /**
