@@ -142,7 +142,8 @@ class api_util {
                 //    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 //}
                 //
-                $firstKey = array_shift(array_keys($value));
+                $valuekeys = array_keys($value);
+                $firstKey = array_shift($valuekeys);
                 if (is_array($value[$firstKey]) || count($value) > 0 ) {
                     $_xml = self::phpToXml($node,$value) ; 
                 }
