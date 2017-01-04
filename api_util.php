@@ -121,7 +121,7 @@ class api_util {
                         if (substr($_k,0,1) == '@') {
                             $pad = ($attrString == "") ? " " : "";
                             $aname = substr($_k,1);
-                            $aval  = $v;
+                            $aval  = htmlspecialchars($v);
                             //$attrs = explode(':', substr($v,1));
                             //$attrString .= $pad . $attrs[0].'="'.$attrs[1].'" ';
                             $attrString .= $pad . $aname.'="'.$aval.'" ';
