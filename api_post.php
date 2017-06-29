@@ -12,7 +12,7 @@ class api_post {
     private static $dryRun;
 
     const DEFAULT_PAGESIZE = 1000;
-    const DEFAULT_MAXRETURN = 200000;
+    const DEFAULT_MAXRETURN = 100000;
 
     /**
      * Read one or more records by their key.  For platform objects, the key is the 'id' field.
@@ -464,10 +464,8 @@ class api_post {
         $readXml = "<readByQuery><object>$object</object><query>$query</query><fields>$fields</fields><returnFormat>$returnFormatArg</returnFormat>";
         $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</readByQuery>";
-        dbg($readXml);
 
         $response = api_post::post($readXml,$session);
-        dbg($response);
         if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
@@ -675,7 +673,7 @@ class api_post {
      */
     public static function readReport($report, api_session $session, $arguments=null, $waitTime=0, $pageSize=100) {
         $maxRecords = self::DEFAULT_MAXRETURN;
-        $max_try = 1000;
+        $max_try = 100;
         $try = 0;
 
         if (is_array($arguments) ) {
@@ -685,62 +683,91 @@ class api_post {
             }
             $argxml .= "</arguments>";
         }
-        $readXml = "<readReport><report>$report</report><returnFormat>csv</returnFormat><waitTime>$waitTime</waitTime>$argxml<pagesize>$pagesize</pagesize></readReport>";
+        $readXml = "<readReport><report>$report</report><returnFormat>csv</returnFormat><waitTime>$waitTime</waitTime>$argxml<pagesize>$pageSize</pagesize></readReport>";
+//        dbg($readXml);
         $objCsv = api_post::post($readXml, $session);
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
 
         if (is_array($objAry) && count($objAry) == 1) {
             $id = $objAry[0]['REPORTID'];
-            do {
+            while(true) { 
                 $readXml = "<readMore><reportId>$id</reportId></readMore>";
                 try {
                     $response = api_post::post($readXml, $session);
-                    dbg("READMORE:");
-                    dbg($response);
-                    dbg("TRIMMED:");
-                    dbg(trim($response));
+                    //dbg(trim($response));
                     if (trim($response) == "") {
                         return array();
                     }
                     api_post::validateReadResults($response);
                     $_obj = api_util::csvToPhp($response);
-                    dbg($_obj);
                     if (isset($_obj[0]['STATUS']) && $_obj[0]['STATUS'] == 'PENDING') {
-                        dbg("Sleeping 10, try = $try");
+                        //dbg("Sleeping 10, try = $try");
                         sleep("10");
                         $try++;
-                        continue;
-                    }
-
-                    $page = self::processReadResults($response, $returnFormat, $pageCount);
-                    $count += $pageCount;
-                    if ($returnFormat == api_returnFormat::PHPOBJ) {
-                        foreach($page as $objRec) {
-                            $phpobj[] = $objRec;
+                        if ($try > $max_try) {
+                            Throw new Exception("Timeout waiting for report to return.");
                         }
+                        continue;
+                    } else {
+                        break;
                     }
-                    elseif ($returnFormat == api_returnFormat::CSV) {
-                        // append all but the first row to the CSV file
-                        $page = explode("\n", $page);
-                        array_shift($page);
-                        $csv .= implode($page, "\n");
-                    }
-                    elseif ($returnFormat == api_returnFormat::XML) {
-                        // just add the xml string
-                        $xml .= $page;
-                    }
-                }
-                catch (Exception $ex) {
+                } catch (Exception $ex) {
                     // for now, pass the exception on
                     Throw new Exception($ex);
                 }
-                if ($pageCount < $pageSize || $count >= $maxRecords) break;
-            } while ($try < $max_try); 
+            } 
 
-            dbg("FINISHED LOOP");
+            $totalcount = $thiscount;
+
+            //dbg("GOT THE RESULT, now read them in!");
+            $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
+            $returnFormat = api_returnFormat::PHPOBJ;
+            $$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
+            $totalcount = $thiscount;
+
+            //dbg("while($thiscount == $pageSize && $totalcount <= $maxRecords)");
+            while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+                //dbg("DOING A READ MORE because: $thiscount == $pageSize && $totalcount <= $maxRecords ");
+                $readXml = "<readMore><reportId>$id</reportId></readMore>";
+                try {
+                    $response = api_post::post($readXml, $session);
+                    //dbg("READMORE: $response");
+                    api_post::validateReadResults($response);
+                    $page = self::processReadResults($response, $returnFormat, $pageCount);
+                    $totalcount += $pageCount;
+                    $thiscount = $pageCount;
+
+                    switch($returnFormat) {
+                        case api_returnFormat::PHPOBJ:
+                            foreach($page as $objRec) {
+                                $phpobj[] = $objRec;
+                            }
+                        break;
+                        case api_returnFormat::CSV:
+                            $page = explode("\n", $page);
+                            array_shift($page);
+                            $csv .= implode($page, "\n");
+                        break;
+                        case api_returnFormat::XML:
+                            $xml .= $page;
+                        break;
+                        default:
+                            throw new Exception("Invalid return format: " . $returnFormat);
+                        break;
+                    }
+
+                }
+                catch (Exception $ex) {
+                    // we've probably exceeded the limit
+                    break;
+                }
+                //dbg("while($thiscount == $pageSize && $totalcount <= $maxRecords)");
+            }
+            //dbg("RETURNING");
+            //dbg($$returnFormat);
+            return $$returnFormat;
         }
-        return $objAry;
     }
 
     /**
@@ -1050,7 +1077,6 @@ class api_post {
         if (!isset($simpleXml->operation)) {
 
             if (isset($simpleXml->errormessage)) {
-                    dbg("HEY1: " . $simpleXml->errormessage);
                 throw new Exception("[Error] " . api_util::xmlErrorToString($simpleXml->errormessage));
             }
         }
@@ -1058,8 +1084,7 @@ class api_post {
             $results = $simpleXml->operation->result;
             foreach ($results as $res) {
                 if ($res->status == "failure" || $res->status == "aborted") {
-                    $msg = api_util::xmlErrorToString($res->errormessage);
-                    throw new Exception("[Error] " . $msg);
+                    throw new Exception("[Error] " . api_util::xmlErrorToString($res->errormessage));
                 }
             }
         }

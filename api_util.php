@@ -130,6 +130,14 @@ class api_util {
                     }
                 }
 
+                if (is_array($value) && count($value) == 0) {
+                    // this means we are a function like <get_companyprefs application="CO"></get_companyprefs> with 
+                    // no elements inside.  We are done.
+                    $xml .= "<$node $attrString></$node>";
+                    
+                    break;
+                }
+
                 //$firstKey = array_shift(array_keys($value));
                 //if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
                 //    $_xml = self::phpToXml($node,$value) ; 
@@ -203,8 +211,8 @@ class api_util {
         }
 
         return $table;
-    }
-
+    }  
+    
     /**
      * Convert a error object into nice text
      * @param Object $error simpleXmlObject
@@ -233,6 +241,7 @@ class api_util {
         }
         return $error_string;
     }
+
 
 
 }
