@@ -1056,7 +1056,7 @@ class api_post {
         else {
             $results = $simpleXml->xpath('/response/operation/result');
             foreach ($results as $result) {
-                if ((string)$result->status == "failure") {
+                if ((string)$result->status == "failure" || (string)$result->status == "aborted") {
                     $errorArray[] = array ( 'controlid' => (string)$result->controlid, 'desc' =>  api_util::xmlErrorToString($result->errormessage,$multi));
                 }
             }
