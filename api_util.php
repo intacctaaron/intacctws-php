@@ -121,13 +121,21 @@ class api_util {
                         if (substr($_k,0,1) == '@') {
                             $pad = ($attrString == "") ? " " : "";
                             $aname = substr($_k,1);
-                            $aval  = $v;
+                            $aval  = htmlspecialchars($v);
                             //$attrs = explode(':', substr($v,1));
                             //$attrString .= $pad . $attrs[0].'="'.$attrs[1].'" ';
                             $attrString .= $pad . $aname.'="'.$aval.'" ';
                             unset($value[$_k]);
                         }
                     }
+                }
+
+                if (is_array($value) && count($value) == 0) {
+                    // this means we are a function like <get_companyprefs application="CO"></get_companyprefs> with 
+                    // no elements inside.  We are done.
+                    $xml .= "<$node $attrString></$node>";
+                    
+                    break;
                 }
 
                 //$firstKey = array_shift(array_keys($value));
@@ -142,7 +150,8 @@ class api_util {
                 //    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 //}
                 //
-                $firstKey = array_shift(array_keys($value));
+                $valuekeys = array_keys($value);
+                $firstKey = array_shift($valuekeys);
                 if (is_array($value[$firstKey]) || count($value) > 0 ) {
                     $_xml = self::phpToXml($node,$value) ; 
                 }
