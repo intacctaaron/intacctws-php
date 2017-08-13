@@ -191,7 +191,7 @@ class api_post {
                         unset($toCreate[$key][$object][$nameField]);
                     }
                 }
-                api_post::create($toCreate, $session);
+                return api_post::create($toCreate, $session);
             }
             if (count($toUpdate) > 0) {
                 foreach ($toUpdate as $updateKey => $updateRec) {
@@ -200,7 +200,7 @@ class api_post {
                         unset($toUpdate[$updateKey][$object][$nameField]);
                     }
                 }
-                api_post::update($toUpdate, $session);
+                return api_post::update($toUpdate, $session);
             }
         }
     }
