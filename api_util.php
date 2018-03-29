@@ -199,7 +199,7 @@ class api_util {
         // get the header row                                                                                                        
         $header = fgetcsv($fp, 10000, ',','"');
         if (is_null($header) || is_null($header[0])) {
-            throw new exception ("Unable to determine header.  Is there garbage in the file?");
+            throw new \Exception ("Unable to determine header.  Is there garbage in the file?");
         }
 
         // get the rows                                                                                                              
