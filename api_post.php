@@ -673,6 +673,10 @@ class api_post {
     public static function readRelated($object, $keys, $relation, $fields, api_session $session) {
         $readXml = "<readRelated><object>$object</object><keys>$keys</keys><relation>$relation</relation><fields>$fields</fields><returnFormat>csv</returnFormat></readRelated>";
         $objCsv = api_post::post($readXml, $session);
+        //if we receive an empty response we return it
+        if (trim($objCsv) == "") {
+           return '';
+        }
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
         return $objAry;
