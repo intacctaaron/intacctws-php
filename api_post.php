@@ -487,7 +487,7 @@ class api_post {
         api_post::validateReadResults($response);
 
 
-        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
+        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0; $thiscount = 0;
         $$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
 
         $totalcount = $thiscount;
