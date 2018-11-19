@@ -150,9 +150,7 @@ class api_util {
                 else {
                     $_xml = self::phpToXml($node,$value) ;
                     $v = $value[$firstKey];
-                    if (!empty($v)) {
-                        $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
-                    }
+                    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
                 }
 
                 if ($attrString != "") {
@@ -194,7 +192,7 @@ class api_util {
         // get the header row
         $header = fgetcsv($fp, 10000, ',','"');
         if (is_null($header) || is_null($header[0])) {
-            throw new exception ("Unable to determine header.  Is there garbage in the file?");
+            throw new \Exception ("Unable to determine header.  Is there garbage in the file?");
         }
 
         // get the rows
@@ -207,8 +205,8 @@ class api_util {
         }
 
         return $table;
-    }
-
+    }  
+    
     /**
      * Convert a error object into nice text
      * @param Object $error simpleXmlObject

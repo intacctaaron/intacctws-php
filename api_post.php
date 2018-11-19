@@ -131,7 +131,6 @@ class api_post {
             $updateXml = $updateXml . $objXml;
         }
         $updateXml = $updateXml . "</update>";
-        //dbg($updateXml);
 
         $res = api_post::post($updateXml, $session);
         return api_post::processUpdateResults($res, $node);
@@ -205,7 +204,7 @@ class api_post {
                         unset($toCreate[$key][$object][$nameField]);
                     }
                 }
-                api_post::create($toCreate, $session);
+                return api_post::create($toCreate, $session);
             }
             if (count($toUpdate) > 0) {
                 foreach ($toUpdate as $updateKey => $updateRec) {
@@ -214,7 +213,7 @@ class api_post {
                         unset($toUpdate[$updateKey][$object][$nameField]);
                     }
                 }
-                api_post::update($toUpdate, $session);
+                return api_post::update($toUpdate, $session);
             }
         }
     }
@@ -489,7 +488,7 @@ class api_post {
         api_post::validateReadResults($response);
 
 
-        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0;
+        $phpobj = array(); $csv = ''; $json = ''; $xml = ''; $count = 0; $thiscount = 0;
         $$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
 
         $totalcount = $thiscount;
@@ -677,6 +676,10 @@ class api_post {
     public static function readRelated($object, $keys, $relation, $fields, api_session $session) {
         $readXml = "<readRelated><object>$object</object><keys>$keys</keys><relation>$relation</relation><fields>$fields</fields><returnFormat>csv</returnFormat></readRelated>";
         $objCsv = api_post::post($readXml, $session);
+        //if we receive an empty response we return it
+        if (trim($objCsv) == "") {
+           return '';
+        }
         api_post::validateReadResults($objCsv);
         $objAry = api_util::csvToPhp($objCsv);
         return $objAry;
@@ -723,7 +726,6 @@ class api_post {
                     }
                     api_post::validateReadResults($response);
                     $_obj = api_util::csvToPhp($response);
-                    //dbg($_obj);
                     if (isset($_obj[0]['STATUS']) && $_obj[0]['STATUS'] == 'PENDING') {
                         //dbg("Sleeping 10, try = $try");
                         sleep("10");

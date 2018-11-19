@@ -74,7 +74,7 @@ class api_session {
         $xml = str_replace("{2%}", $companyId, $xml);
         $xml = str_replace("{3%}", $password, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
-        $xml = str_replace("{5%}", $senderPassword, $xml);
+        $xml = str_replace("{5%}", htmlspecialchars($senderPassword), $xml);
 
         // hack for backward compat
         if ($entityType == 'location') {
