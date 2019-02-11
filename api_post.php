@@ -1095,6 +1095,8 @@ class api_post {
      * @throws Exception
      */
     private static function processUpdateResults($response, $objectName) {
+        //Fix Intacct bug, by trim spaces from the returned xml response string
+        $response  = trim($response);
         $simpleXml = simplexml_load_string($response);
         if ($simpleXml === false) {
             throw new Exception("Invalid XML response: \n " . var_export($response, true));
