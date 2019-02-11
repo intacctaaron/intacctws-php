@@ -119,7 +119,7 @@ class api_post {
      * @return array An array of 'ids' updated in the method invocation
      */
     public static function update($records, api_session $session) {
-        if (count($records) > 100) throw new Exception("Attempting to update more than 100 records.");
+        if (count($records) > 10000) throw new Exception("Attempting to update more than 10000 records.");
 
         // convert the $records array into an xml structure
         $updateXml = "<update>";
