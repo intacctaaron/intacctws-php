@@ -496,7 +496,7 @@ class api_post {
 
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
-        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+        while($thiscount == $pageSize && $totalcount < $maxRecords) {
             dbg("READMORE: " . ++$count);
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
