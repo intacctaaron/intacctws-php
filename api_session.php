@@ -48,6 +48,7 @@ class api_session {
             'companyId' => $this->companyId,
             'userId' => $this->userId,
             'senderId' => $this->senderId,
+            'entityId' => $this->entityId,
             'senderPassword' => 'REDACTED',
             'transaction' => $this->transaction
         );
@@ -111,6 +112,7 @@ class api_session {
 
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
         $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->entityId = (string)$responseObj->operation->authentication->locationid;
         $this->companyId = $companyId;
         $this->userId = $userId;
         $this->senderId = $senderId;
@@ -141,6 +143,7 @@ class api_session {
 
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
         $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->entityId = (string)$responseObj->operation->authentication->locationid;
         $this->companyId = $companyId;
         $this->userId = $userId;
         $this->senderId = $senderId;
@@ -172,6 +175,7 @@ class api_session {
         $this->companyId = (string)$responseObj->operation->authentication->companyid;
         $this->userId = (string)$responseObj->operation->authentication->userid;
         $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->entityId = (string)$responseObj->operation->authentication->locationid;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
     }
