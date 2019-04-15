@@ -6,6 +6,7 @@ class api_session {
     public $sessionId;
     public $endPoint;
     public $companyId;
+    public $entityId;
     public $userId;
     public $senderId;
     public $senderPassword;
@@ -46,6 +47,7 @@ class api_session {
             'sessionId' => $this->sessionId,
             'endPoint' => $this->endPoint,
             'companyId' => $this->companyId,
+            'entityId' => $this->entityId,
             'userId' => $this->userId,
             'senderId' => $this->senderId,
             'entityId' => $this->entityId,
