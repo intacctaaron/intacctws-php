@@ -952,10 +952,10 @@ class api_post {
                 if (strpos($ex->getMessage(), "too many operations") !== false) {
                     $count++;
                     if ($count >= 5) {
-                        throw new Exception($ex);
+                        throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                     }
                 } else {
-                    throw new Exception($ex);
+                    throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                 }
             }
         }
