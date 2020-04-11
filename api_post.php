@@ -119,7 +119,7 @@ class api_post {
      * @return array An array of 'ids' updated in the method invocation
      */
     public static function update($records, api_session $session) {
-        if (count($records) > 100) throw new Exception("Attempting to update more than 100 records.");
+        if (count($records) > 10000) throw new Exception("Attempting to update more than 10000 records.");
 
         // convert the $records array into an xml structure
         $updateXml = "<update>";
@@ -563,7 +563,7 @@ class api_post {
 
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
-        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+        while($thiscount == $pageSize && $totalcount < $maxRecords) {
             dbg("READMORE: " . ++$count);
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
@@ -1133,10 +1133,10 @@ class api_post {
                 if (strpos($ex->getMessage(), "too many operations") !== false) {
                     $count++;
                     if ($count >= 5) {
-                        throw new Exception($ex);
+                        throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                     }
                 } else {
-                    throw new Exception($ex);
+                    throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                 }
             }
         }
