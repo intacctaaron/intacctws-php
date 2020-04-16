@@ -263,11 +263,78 @@ class api_post {
      * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
      * @return String the XML response from Intacct
      */
-    public static function sendFunctions($phpObj, api_session $session, $dtdVersion="3.0") {
+    public static function sendFunctions($phpObj, api_session $session, $dtdVersion="3.0", $returnFormat = api_returnFormat::XML) {
         $xml = api_util::phpToXml('content',array($phpObj));
-        return api_post::post($xml, $session,$dtdVersion, true);
+        $res = api_post::post($xml, $session,$dtdVersion, true);
+        if ($returnFormat == api_returnFormat::PHPOBJ) {
+            $res_xml = simplexml_load_string($res);
+            $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
+            dbg($json);
+            $array = json_decode($json,TRUE);
+            dbg($array);
+        } else {
+            return $res;
+        }
     }
 
+    public static function prune_empty_element($a) {
+        foreach ($a as $k => $v) {
+            if (is_array($v) && empty($v)) {
+                $a[$k] = "";
+            }
+        }
+        return $a;
+    }
+
+    /**
+     * Run any Intacct API method not directly implemented in this class.  You must pass
+     * valid XML for the method you wish to invoke.
+     * @param Array $phpObj an array for all the functions .
+     * @param api_session $session  an api_session instance with a valid connection
+     * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
+     * @return String the XML response from Intacct
+     */
+    public static function query(api_session $session, $call, $returnFormat = api_returnFormat::PHPOBJ) {
+        $obj = $call['object'];
+        $call['offset'] = $call['offset'] ?? '0';
+        $call['pagesize'] = $call['pagesize'] ?? '100';
+        $phpObj = array (
+            'function' => array (
+                '@controlid' => uniqid(),
+                'query' => $call,
+            )
+        );
+        $rows = array();
+        do {
+            $xml = api_util::phpToXml('content',array($phpObj));
+            $res = api_post::post($xml, $session,'3.0', true);
+            $res_xml = simplexml_load_string($res);
+//            $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
+            $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
+            $array = json_decode($json,TRUE);
+            if (!isset($array[$obj])) {
+                $array[$obj] = array();
+            } 
+
+            $row = array_map(array('api_post','prune_empty_element'),$array[$obj]);
+            $rows = array_merge($rows,$row);
+            $pagesize = $call['pagesize'] ?? 100; 
+            $num_remaining = $array['@attributes']['numremaining']; 
+            $phpObj['function']['query']['offset'] += $phpObj['function']['query']['pagesize'] ; 
+            //dbg("READ: " . count($row));
+            //dbg("NR: " . $num_remaining);
+            //dbg("NEW OFFSET: " . $phpObj['function']['query']['offset']);
+            //dbg("ROW SIZE NOW: " . count($rows));
+            //sleep(2);
+
+        } while ($num_remaining > 0);
+
+        if ($returnFormat == api_returnFormat::PHPOBJ) {
+            return $rows;
+        } else {
+            die("only php return format supported");
+        }
+    }
     /**
      * Run any Intacct API method not directly implemented in this class.  You must pass
      * valid XML for the method you wish to invoke.
@@ -533,6 +600,114 @@ class api_post {
                     break;
                 }
                 dbg("READMORE GOT: $thiscount");
+
+            }
+            catch (Exception $ex) {
+                // we've probably exceeded the limit
+                break;
+            }
+        }
+        return $$returnFormat;
+    }
+    /**
+     * Read records using a query.  Specify the object you want to query and something like a "where" clause"
+     * @param api_session $session An instance of the api_session object with a valid connection
+     * @param String $object the object upon which to run the query
+     * @param String $fields A comma separated list of fields to return
+     * @param String $query the query string to execute.  Use SQL operators
+     * @param int $maxRecords number of records to return.  Defaults to 100000
+     * @param string $returnFormat defaults to php object.  Pass one of the valid constants from api_returnFormat class
+     * @return mixed either string or array of objects depending on returnFormat argument
+     */
+    public static function query_bad(api_session $session, $object, $fields=null, $query=null, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ) {
+
+        $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
+
+        if ($returnFormat == api_returnFormat::PHPOBJ) {
+            $returnFormatArg = api_returnFormat::CSV;
+        }
+        else {
+            $returnFormatArg = $returnFormat;
+        }
+
+        $field_xml = "";
+        if ($fields !== null) {
+            $field_xml = "<field>" . str_replace(",","</field><field>",$fields) . "</field>";
+        }
+        if ($query !== NULL) {
+            $query_xml = api_util::phpToXml($query);
+
+        }
+
+        // TODO: Implement returnFormat.  Today we only support PHPOBJ
+//        $query = HTMLSpecialChars($query);
+
+        $readXml = "<query><object>$object</object><filter>$query_xml</filter><select>$field_xml</select>";
+        $readXml .= "<pagesize>$pageSize</pagesize>";
+        $readXml .= "</query>";
+        dbg($readXml);
+
+        $response = api_post::post($readXml,$session);
+        dbg($response);
+        die();
+        if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
+            // csv with no records will have no response, so avoid the error from validate and just return
+            return '';
+        }
+        api_post::validateReadResults($response);
+
+
+        $phpobj = array(); $xml = ''; $count = 0; $thiscount = 0;
+ 
+        $simpleXml = simplexml_load_string($response);
+        $data = $simpleXml->xpath("/response/operation/result/data");
+        $thiscount = $data[0]['count'];
+        $rows = $simpleXml->xpath("/response/operation/result/data/$object");
+        foreach ($rows as $row) {
+            $phpobj[] = (array)$row;
+        }
+
+        if ($data[0]['numremaining'])
+
+//        $thiscount = $data->
+        
+        //$$returnFormat = self::processReadResults($response, $returnFormat, $thiscount);
+
+        $totalcount = $thiscount;
+        //dbg("$thiscount == $pageSize && $totalcount <= $maxRecords");
+
+        // we have no idea if there are more if CSV is returned, so just check
+        // if the last count returned was  $pageSize
+        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+            dbg("READMORE: " . ++$count);
+            $readXml = "<readMore><object>$object</object></readMore>";
+            try {
+                $response = api_post::post($readXml, $session);
+                //dbg($response);
+                //dbg(api_post::getLastRequest());
+                api_post::validateReadResults($response);
+                $page = self::processReadResults($response, $returnFormat, $pageCount);
+                $totalcount += $pageCount;
+                $thiscount = $pageCount;
+
+                switch($returnFormat) {
+                    case api_returnFormat::PHPOBJ:
+                        foreach($page as $objRec) {
+                            $phpobj[] = $objRec;
+                        }
+                    break;
+                    case api_returnFormat::CSV:
+                        $page = explode("\n", $page);
+                        array_shift($page);
+                        $csv .= implode($page, "\n");
+                    break;
+                    case api_returnFormat::XML:
+                        $xml .= $page;
+                    break;
+                    default:
+                        throw new Exception("Invalid return format: " . $returnFormat);
+                    break;
+                }
 
             }
             catch (Exception $ex) {
@@ -831,11 +1006,14 @@ class api_post {
 
         $count = 0;
         $delIds = array();
+        $_count = count($ids);
 
         foreach($ids as $rec) {
             $delIds[] = $rec[$key_field];
             if (count($delIds) == $num_per_func) {
                 try {
+                    $_count -= $num_per_func;
+                    dbg($_count);
                     api_post::delete($object, implode(",", $delIds), $session);
                 }
                 catch (Exception $ex) {
@@ -962,10 +1140,10 @@ class api_post {
                 if (strpos($ex->getMessage(), "too many operations") !== false) {
                     $count++;
                     if ($count >= 5) {
-                        throw new Exception($ex);
+                        throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                     }
                 } else {
-                    throw new Exception($ex);
+                    throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                 }
             }
         }
