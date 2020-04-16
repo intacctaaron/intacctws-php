@@ -277,11 +277,11 @@ class api_post {
      * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
      * @return String the XML response from Intacct
      */
-    public static function get_list($object, $filter, $sorts, $fields, api_session $session, $dtdVersion="2.1") {
+    public static function get_list($object, $filter, $sorts, $fields, api_session $session, $dtdVersion="2.1", $max_desired = null) {
         $get_list = array();
         $get_list['@object'] = $object;
         $get_list['@start'] = 0;
-        $get_list['@maxitems'] = 100;
+        $get_list['@maxitems'] = min(1000,$max_desired);
 
         if ($filter != null) {
             $get_list['filter'] = $filter;
@@ -307,6 +307,8 @@ class api_post {
         $toReturn = null;
         if (array_key_exists($object,$ret)) {
             $toReturn = $ret[$object];
+        } else {
+            return array();
         }
         if (is_array($toReturn)) {
             $keys = array_keys($toReturn);
@@ -320,10 +322,12 @@ class api_post {
         $total = $xml->operation->result->listtype;
         $attrs = $total->attributes();
         $total = $attrs['total'];
+        $c = count($toReturn);
 
-        if (count($toReturn) < $total) {
+        if ($c < $total && ($max_desired == null || $c < $max_desired )) {
 
             do {
+                dbg("FETCH MORE " . count($toReturn) . " of $total ($max_desired)");
                 // we need to fetch more
                 $get_list['@start'] = count($toReturn);
                 $func['function'] = array();
@@ -336,6 +340,10 @@ class api_post {
                 $xml = api_util::phpToXml('content',array($func));
                 $res = api_post::post($xml, $session,$dtdVersion, true);
                 $ret = api_post::processListResults($res, api_returnFormat::PHPOBJ, $count);
+
+                if (!is_array($ret) || empty($ret)) {
+                    break;
+                }
 
                 $nextBatch = null;
                 if (array_key_exists($object,$ret)) {
@@ -480,7 +488,6 @@ class api_post {
         //dbg($readXml);
 
         $response = api_post::post($readXml,$session);
-        //dbg($response);
         if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
@@ -497,7 +504,6 @@ class api_post {
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
         while($thiscount == $pageSize && $totalcount < $maxRecords) {
-            dbg("READMORE: " . ++$count);
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
                 $response = api_post::post($readXml, $session);
@@ -526,6 +532,7 @@ class api_post {
                         throw new Exception("Invalid return format: " . $returnFormat);
                     break;
                 }
+                dbg("READMORE GOT: $thiscount");
 
             }
             catch (Exception $ex) {
@@ -535,7 +542,6 @@ class api_post {
         }
         return $$returnFormat;
     }
-
     /**
      * Read records using a query.  Specify the object you want to query and something like a "where" clause"
      * @param String $object the object upon which to run the query
@@ -813,11 +819,15 @@ class api_post {
         $num_per_func= 100;
         // read all the record ids for the given object
         $ids = api_post::readByQuery($object, "$key_field > 0 and $query", $key_field, $session, $max);
-        dbg("COUNT of things to delete: " . count($ids));
+        if (!is_array($ids)) {
+            $ids = array();
+        }
 
         if ((!is_array($ids) && trim($ids) == '') || !count($ids) > 0) {
             return 0;
         }
+
+        dbg("COUNT of things to delete: " . count($ids));
 
         $count = 0;
         $delIds = array();
@@ -1187,6 +1197,10 @@ class api_post {
         }
 
         $json = json_encode($xml->operation->result->data,JSON_FORCE_OBJECT);
+        if ($json == "{}")  {
+            return array();
+        }
+            
         $array = json_decode($json,TRUE);
 
         $obj = key($array);
