@@ -242,6 +242,10 @@ class api_post {
         return api_post::post($xml, $session,$dtdVersion);
     }
 
+    public static function send_xml($xml, api_session $session) {
+        return api_post::post("<content>$xml</content>", $session,"3.0",true);
+    }
+
     /**
      * Run any Intacct API method not directly implemented in this class.  You must pass
      * valid XML for the method you wish to invoke.
@@ -305,6 +309,7 @@ class api_post {
             )
         );
         $rows = array();
+        dbg("**RBQ**: (QUERY) " . $obj );
         do {
             $xml = api_util::phpToXml('content',array($phpObj));
             $res = api_post::post($xml, $session,'3.0', true);
@@ -314,7 +319,11 @@ class api_post {
             $array = json_decode($json,TRUE);
             if (!isset($array[$obj])) {
                 $array[$obj] = array();
-            } 
+            }  else if (!is_numeric(key($array[$obj]))) {
+                $array[$obj] = array(
+                    $array[$obj] 
+                );
+            }
 
             $row = array_map(array('api_post','prune_empty_element'),$array[$obj]);
             $rows = array_merge($rows,$row);
@@ -528,6 +537,7 @@ class api_post {
      * @return mixed either string or array of objects depending on returnFormat argument
      */
     public static function readByQuery($object, $query, $fields, api_session $session, $maxRecords=self::DEFAULT_MAXRETURN, $returnFormat=api_returnFormat::PHPOBJ) {
+        dbg("RBQ: $object -> $query with $fields");
 
         $pageSize = ($maxRecords <= self::DEFAULT_PAGESIZE) ? $maxRecords : self::DEFAULT_PAGESIZE;
 
