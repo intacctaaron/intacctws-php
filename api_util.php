@@ -111,7 +111,7 @@ class api_util {
         foreach($values as $node => $value) {
             $attrString = "";
             $_xml = "";
-            if (is_array($value)) {
+            if (is_array($value) && count($value) > 0) {
                 if (is_numeric($node)) {
                     $node = $key;
                 }
@@ -130,27 +130,17 @@ class api_util {
                     }
                 }
 
-                //$firstKey = array_shift(array_keys($value));
-                //if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
-                //    $_xml = self::phpToXml($node,$value) ;
-                //}
-                //else {
-                //    $v = "";
-                //    if (isset($value[$firstKey])) {
-                //        $v = $value[$firstKey];
-                //    }
-                //    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
-                //}
-                //
                 $valuekeys = array_keys($value);
                 $firstKey = array_shift($valuekeys);
-                if (is_array($value[$firstKey]) || count($value) > 0 ) {
+                if (is_array($value) && (( isset($value[$firstKey]) && is_array($value[$firstKey])) || count($value) > 0)) {
                     $_xml = self::phpToXml($node,$value) ;
                 }
                 else {
                     $_xml = self::phpToXml($node,$value) ;
-                    $v = $value[$firstKey];
-                    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
+                    $v = $value[$firstKey] ?? '';
+                    if (!empty($v)) {
+                        $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
+                    }
                 }
 
                 if ($attrString != "") {
@@ -165,7 +155,8 @@ class api_util {
                     $xml .= "<" . $key. $attrString . ">" . htmlspecialchars($value) . "</" . $key. ">";
                 }
                 else {
-                    $xml .= "<" . $node . $attrString . ">" . htmlspecialchars($value) . "</" . $node . ">";
+                    $_v = ($value != "0" && empty($value)) ? '' : htmlspecialchars($value);
+                    $xml .= "<" . $node . $attrString . ">" .$_v . "</" . $node . ">";
                 }
             }
         }
@@ -184,7 +175,10 @@ class api_util {
     public static function csvToPhp($csv) {
 
         $fp = fopen('php://temp', 'r+');
+        $csv = str_replace("\,",",",$csv);
+        $csv = str_replace('\",','",',$csv);
         fwrite($fp, trim($csv));
+
 
         rewind($fp);
 

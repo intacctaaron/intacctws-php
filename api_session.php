@@ -86,7 +86,7 @@ class api_session {
         $xml = str_replace("{5%}", htmlspecialchars($senderPassword), $xml);
 
         // hack for backward compat
-        if ($entityType == 'location') {
+        if ($entityType == 'location' || $entityType === null) {
             $xml = str_replace("{%entityid%}", "<locationid>$entityId</locationid>", $xml);
         } else if ($entityType == 'client') {
             $xml = str_replace("{%entityid%}", "<clientid>$entityId</clientid>", $xml);
