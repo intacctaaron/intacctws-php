@@ -213,6 +213,9 @@ class api_util {
         // show just the first error
         //$error = $error->error[0];
         $error_string = "";
+        if (!isset($error->error)) {
+            return "Malformed error: " . var_export($error, true);
+        }
         foreach ($error->error as $error) {
             if (!is_object($error)) {
                 return "Malformed error: " . var_export($error, true);
