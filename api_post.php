@@ -276,6 +276,7 @@ class api_post {
             dbg($json);
             $array = json_decode($json,TRUE);
             dbg($array);
+            return $array;
         } else {
             return $res;
         }
