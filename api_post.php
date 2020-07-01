@@ -299,10 +299,14 @@ class api_post {
      * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
      * @return String the XML response from Intacct
      */
-    public static function query(api_session $session, $call, $returnFormat = api_returnFormat::PHPOBJ) {
+    public static function query(api_session $session, $call, int $limit = null, $returnFormat = api_returnFormat::PHPOBJ) {
         $obj = $call['object'];
         $call['offset'] = $call['offset'] ?? '0';
         $call['pagesize'] = $call['pagesize'] ?? '100';
+        if ($limit !== null) {
+            $call['pagesize'] = min($limit,$call['pagesize']);
+        }
+        
         $phpObj = array (
             'function' => array (
                 '@controlid' => uniqid(),
@@ -311,11 +315,11 @@ class api_post {
         );
         $rows = array();
         dbg("**RBQ**: (QUERY) " . $obj );
+
         do {
             $xml = api_util::phpToXml('content',array($phpObj));
             $res = api_post::post($xml, $session,'3.0', true);
             $res_xml = simplexml_load_string($res);
-//            $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
             $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
             $array = json_decode($json,TRUE);
             if (!isset($array[$obj])) {
@@ -331,11 +335,10 @@ class api_post {
             $pagesize = $call['pagesize'] ?? 100; 
             $num_remaining = $array['@attributes']['numremaining']; 
             $phpObj['function']['query']['offset'] += $phpObj['function']['query']['pagesize'] ; 
-            //dbg("READ: " . count($row));
-            //dbg("NR: " . $num_remaining);
-            //dbg("NEW OFFSET: " . $phpObj['function']['query']['offset']);
-            //dbg("ROW SIZE NOW: " . count($rows));
-            //sleep(2);
+
+            if ($limit !== null && $phpObj['function']['query']['offset'] >= $limit) {
+                $num_remaining = 0;
+            }
 
         } while ($num_remaining > 0);
 
