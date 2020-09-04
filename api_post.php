@@ -273,9 +273,7 @@ class api_post {
         if ($returnFormat == api_returnFormat::PHPOBJ) {
             $res_xml = simplexml_load_string($res);
             $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
-            dbg($json);
             $array = json_decode($json,TRUE);
-            dbg($array);
             return $array;
         } else {
             return $res;
