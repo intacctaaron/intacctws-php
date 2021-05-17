@@ -47,6 +47,7 @@ class api_session {
     const XML_SESSIONID = "<sessionid>{1%}</sessionid>";
 
     const DEFAULT_LOGIN_URL = "https://api.intacct.com/ia/xml/xmlgw.phtml";
+    const PRV_LOGIN_URL = "https://preview.intacct.com/ia/xml/xmlgw.phtml";
 
     public function __toString() {
         $temp = array (
@@ -112,7 +113,8 @@ class api_session {
 
         $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = strpos($companyId,"-prv") === FALSE ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
