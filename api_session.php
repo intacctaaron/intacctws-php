@@ -145,7 +145,8 @@ class api_session {
 
         $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = strpos($companyId,"-prv") === FALSE ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
@@ -177,7 +178,8 @@ class api_session {
         $xml = str_replace("{5%}", $senderPassword, $xml);
         $xml = str_replace("{6%}", $entityId, $xml);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = ($this->companyId === null || strpos($this->companyId,"-prv") === FALSE) ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
