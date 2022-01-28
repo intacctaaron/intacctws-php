@@ -1177,27 +1177,40 @@ class api_post {
 
         $ch = curl_init();
         curl_setopt( $ch, CURLOPT_URL, $endPoint );
-        curl_setopt( $ch, CURLOPT_HEADER, 0 );
+        curl_setopt( $ch, CURLOPT_HEADER, true );
+        curl_setopt( $ch, CURLINFO_HEADER_OUT, true );
         curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1 );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
         curl_setopt( $ch, CURLOPT_TIMEOUT, 6000 ); //Seconds until timeout
         curl_setopt( $ch, CURLOPT_POST, 1 );
-        curl_setopt( $ch, CURLOPT_VERBOSE, false );
+        curl_setopt( $ch, CURLOPT_VERBOSE, 0);
         // TODO: Research and correct the problem with CURLOPT_SSL_VERIFYPEER
         curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false); // yahoo doesn't like the api.intacct.com CA
 
         $body = "xmlrequest=" . urlencode( $body );
-        curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
 
+        curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
         $response = curl_exec( $ch );
         $error = curl_error($ch);
+
+        //$info = curl_getinfo( $ch, CURLINFO_HEADER_OUT );
+        //$info = curl_getinfo( $ch );
+        
+        //dbg($response);
+        //
+        // Then, after your curl_exec call:
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $response_header = substr($response, 0, $header_size);
+        $response_body = substr($response, $header_size);
+
         if ($error != "") {
             throw new exception($error);
         }
         curl_close( $ch );
 
-        self::$lastResponse = $response;
-        return $response;
+        self::$lastResponse = $response_header . "--" . $response_body;
+dbg($response_header);
+        return $response_body;
 
     }
 
