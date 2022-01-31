@@ -9,6 +9,7 @@ class api_post {
 
     private static $lastRequest;
     private static $lastResponse;
+    private static $lastResponseHeader;
     private static $dryRun;
 
     const DEFAULT_PAGESIZE = 1000;
@@ -1208,8 +1209,8 @@ class api_post {
         }
         curl_close( $ch );
 
-        self::$lastResponse = $response_header . "--" . $response_body;
-dbg($response_header);
+        self::$lastResponse = $response_body; 
+        self::$lastResponseHeader = $response_header; 
         return $response_body;
 
     }
@@ -1504,6 +1505,10 @@ dbg($response_header);
      */
     public static function getLastResponse() {
       return self::$lastResponse;
+    }
+
+    public static function getLastResponseHeader() {
+      return self::$lastResponseHeader;
     }
 
     public static function setDryRun($tf=true)
