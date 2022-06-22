@@ -86,7 +86,7 @@ class api_post {
      * @throws Exception
      * @return Array array of keys to the objects created
      */
-    public static function create($records, api_session $session) {
+    public static function create($records, api_session $session,$policy=null) {
 
         if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
 
@@ -100,9 +100,11 @@ class api_post {
             $createXml = $createXml . $objXml;
         }
         $createXml = $createXml . "</create>";
-        $res = api_post::post($createXml, $session);
+        $res = api_post::post($createXml, $session, "3.0", false, $policy);
+        if ($policy !== null) {
+            return $res;
+        }
         $records = api_post::processUpdateResults($res, $node);
-
         return $records;
     }
 
@@ -496,7 +498,7 @@ class api_post {
 
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
-        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+        while($thiscount == $pageSize && $totalcount < $maxRecords) {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
                 $response = api_post::post($readXml, $session);
@@ -577,7 +579,7 @@ class api_post {
 
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
-        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+        while($thiscount == $pageSize && $totalcount < $maxRecords) {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
                 $response = api_post::post($readXml, $session);
@@ -846,7 +848,7 @@ class api_post {
      * @throws Exception
      * @return String the XML response document
      */
-    private static function post($xml, api_session $session, $dtdVersion="3.0",$multiFunc=false) {
+    private static function post($xml, api_session $session, $dtdVersion="3.0",$multiFunc=false, $policy=null) {
 
         $sessionId = $session->sessionId;
         $endPoint = $session->endPoint;
@@ -894,10 +896,13 @@ class api_post {
     <control>
         <senderid>{$senderId}</senderid>
         <password>{$senderPassword}</password>
-        <controlid>foobar</controlid>
+        <controlid>".uniqid()."</controlid>
         <uniqueid>false</uniqueid>
-        <dtdversion>{$dtdVersion}</dtdversion>
-    </control>
+        <dtdversion>{$dtdVersion}</dtdversion>";
+        if ($policy !== null) {
+            $templateHead .= "<policyid>$policy</policyid>";
+        }
+    $templateHead .= "</control>
     <operation transaction='{$transaction}'>
         <authentication>
             <sessionid>{$sessionId}</sessionid>
