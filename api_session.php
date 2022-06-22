@@ -6,6 +6,7 @@ class api_session {
     public $sessionId;
     public $endPoint;
     public $companyId;
+    public $entityId;
     public $userId;
     public $senderId;
     public $senderPassword;
@@ -29,6 +30,12 @@ class api_session {
         </content>
     </operation>
 </request>";
+    const XML_FOOTER_2 = "</authentication>
+        <content>
+                <function controlid=\"foobar\"><getAPISession><locationid>{6%}</locationid></getAPISession></function>
+        </content>
+    </operation>
+</request>";
 
     const XML_LOGIN = "<login>
                         <userid>{1%}</userid>
@@ -40,14 +47,17 @@ class api_session {
     const XML_SESSIONID = "<sessionid>{1%}</sessionid>";
 
     const DEFAULT_LOGIN_URL = "https://api.intacct.com/ia/xml/xmlgw.phtml";
+    const PRV_LOGIN_URL = "https://preview.intacct.com/ia/xml/xmlgw.phtml";
 
     public function __toString() {
         $temp = array (
             'sessionId' => $this->sessionId,
             'endPoint' => $this->endPoint,
             'companyId' => $this->companyId,
+            'entityId' => $this->entityId,
             'userId' => $this->userId,
             'senderId' => $this->senderId,
+            'entityId' => $this->entityId,
             'senderPassword' => 'REDACTED',
             'transaction' => $this->transaction
         );
@@ -74,10 +84,10 @@ class api_session {
         $xml = str_replace("{2%}", $companyId, $xml);
         $xml = str_replace("{3%}", $password, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
-        $xml = str_replace("{5%}", $senderPassword, $xml);
+        $xml = str_replace("{5%}", htmlspecialchars($senderPassword), $xml);
 
         // hack for backward compat
-        if ($entityType == 'location') {
+        if ($entityType == 'location' || $entityType === null) {
             $xml = str_replace("{%entityid%}", "<locationid>$entityId</locationid>", $xml);
         } else if ($entityType == 'client') {
             $xml = str_replace("{%entityid%}", "<clientid>$entityId</clientid>", $xml);
@@ -103,7 +113,8 @@ class api_session {
 
         $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = strpos($companyId,"-prv") === FALSE ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
@@ -111,6 +122,7 @@ class api_session {
 
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
         $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->entityId = (string)$responseObj->operation->authentication->locationid;
         $this->companyId = $companyId;
         $this->userId = $userId;
         $this->senderId = $senderId;
@@ -133,7 +145,8 @@ class api_session {
 
         $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = strpos($companyId,"-prv") === FALSE ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
@@ -141,6 +154,7 @@ class api_session {
 
         $this->sessionId = (string)$responseObj->operation->result->data->api->sessionid;
         $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->entityId = (string)$responseObj->operation->authentication->locationid;
         $this->companyId = $companyId;
         $this->userId = $userId;
         $this->senderId = $senderId;
@@ -156,14 +170,16 @@ class api_session {
      * @param String $senderPassword Your Intacct partner password
      * @throws Exception This method returns no values, but will raise an exception if there's a connection error
      */
-    public function connectSessionId($sessionId, $senderId, $senderPassword) {
+    public function connectSessionId($sessionId, $senderId, $senderPassword, $entityId = '') {
 
-        $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER;
+        $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER_2;
         $xml = str_replace("{1%}", $sessionId, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
+        $xml = str_replace("{6%}", $entityId, $xml);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = ($this->companyId === null || strpos($this->companyId,"-prv") === FALSE) ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
@@ -172,6 +188,7 @@ class api_session {
         $this->companyId = (string)$responseObj->operation->authentication->companyid;
         $this->userId = (string)$responseObj->operation->authentication->userid;
         $this->endPoint = (string)$responseObj->operation->result->data->api->endpoint;
+        $this->entityId = (string)$responseObj->operation->authentication->locationid;
         $this->senderId = $senderId;
         $this->senderPassword = $senderPassword;
     }

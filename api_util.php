@@ -70,7 +70,7 @@ class api_util {
      * @return array
      */
     public static function getRangeOfDates($date, $count) {
-        // the first date is the first of the following month                                                                        
+        // the first date is the first of the following month
         $month = date("m", strToTime($date)) + 1;
         $year = date("Y", strToTime($date));
         if ($month == 13) {
@@ -81,7 +81,7 @@ class api_util {
         $dateTime->modify("-1 day");
 
         $dates = array($dateTime->format("Y-m-d"));
-        // now, iterate $count - 1 times adding one month to each                                                                    
+        // now, iterate $count - 1 times adding one month to each
         for ($x=1; $x < $count; $x++) {
             $dateTime->modify("+1 day");
             $dateTime->modify("+1 month");
@@ -91,11 +91,11 @@ class api_util {
         return $dates;
     }
 
-    /**                                                                                                                              
-     * Convert a php structure to an XML element                                                                                     
+    /**
+     * Convert a php structure to an XML element
      * @param String $key element name
      * @param Array $values element values
-     * @return string xml                                                                                                            
+     * @return string xml
      */
     public static function phpToXml($key, $values) {
         $xml = "";
@@ -111,7 +111,7 @@ class api_util {
         foreach($values as $node => $value) {
             $attrString = "";
             $_xml = "";
-            if (is_array($value)) {
+            if (is_array($value) && count($value) > 0) {
                 if (is_numeric($node)) {
                     $node = $key;
                 }
@@ -130,27 +130,17 @@ class api_util {
                     }
                 }
 
-                //$firstKey = array_shift(array_keys($value));
-                //if ((isset($value[$firstKey]) && is_array($value[$firstKey]) || count($value) > 1 )) {
-                //    $_xml = self::phpToXml($node,$value) ; 
-                //}
-                //else {
-                //    $v = "";
-                //    if (isset($value[$firstKey])) {
-                //        $v = $value[$firstKey];
-                //    }
-                //    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
-                //}
-                //
                 $valuekeys = array_keys($value);
                 $firstKey = array_shift($valuekeys);
-                if (is_array($value[$firstKey]) || count($value) > 0 ) {
-                    $_xml = self::phpToXml($node,$value) ; 
+                if (is_array($value) && (( isset($value[$firstKey]) && is_array($value[$firstKey])) || count($value) > 0)) {
+                    $_xml = self::phpToXml($node,$value) ;
                 }
                 else {
-                    $_xml = self::phpToXml($node,$value) ; 
-                    $v = $value[$firstKey];
-                    $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
+                    $_xml = self::phpToXml($node,$value) ;
+                    $v = $value[$firstKey] ?? '';
+                    if (!empty($v)) {
+                        $_xml .= "<$node>" . htmlspecialchars($v) . "</$node>";
+                    }
                 }
 
                 if ($attrString != "") {
@@ -158,13 +148,15 @@ class api_util {
                 }
 
                 $xml .= $_xml;
+//                dbg("XML now is $xml");
             }
             else {
                 if (is_numeric($node)) {
                     $xml .= "<" . $key. $attrString . ">" . htmlspecialchars($value) . "</" . $key. ">";
                 }
                 else {
-                    $xml .= "<" . $node . $attrString . ">" . htmlspecialchars($value) . "</" . $node . ">";
+                    $_v = ($value != "0" && empty($value)) ? '' : htmlspecialchars($value);
+                    $xml .= "<" . $node . $attrString . ">" .$_v . "</" . $node . ">";
                 }
             }
         }
@@ -176,25 +168,28 @@ class api_util {
         return $xml;
     }
 
-    /**                                                                                                                             
-     * Convert a CSV string result into a php array.                                                                                 
-     * This work for Intacct API results.  Not a generic method                                                                      
+    /**
+     * Convert a CSV string result into a php array.
+     * This work for Intacct API results.  Not a generic method
      */
     public static function csvToPhp($csv) {
 
         $fp = fopen('php://temp', 'r+');
+        $csv = str_replace("\,",",",$csv);
+        $csv = str_replace('\",','",',$csv);
         fwrite($fp, trim($csv));
+
 
         rewind($fp);
 
         $table = array();
-        // get the header row                                                                                                        
+        // get the header row
         $header = fgetcsv($fp, 10000, ',','"');
         if (is_null($header) || is_null($header[0])) {
-            throw new exception ("Unable to determine header.  Is there garbage in the file?");
+            throw new \Exception ("Unable to determine header.  Is there garbage in the file?");
         }
 
-        // get the rows                                                                                                              
+        // get the rows
         while (($data = fgetcsv($fp, 10000, ',','"')) !== false) {
             $row = array();
             foreach($header as $key => $value) {
@@ -218,6 +213,9 @@ class api_util {
         // show just the first error
         //$error = $error->error[0];
         $error_string = "";
+        if (!isset($error->error)) {
+            return "Malformed error: " . var_export($error, true);
+        }
         foreach ($error->error as $error) {
             if (!is_object($error)) {
                 return "Malformed error: " . var_export($error, true);
