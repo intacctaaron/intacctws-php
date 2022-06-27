@@ -170,9 +170,16 @@ class api_session {
      * @param String $senderPassword Your Intacct partner password
      * @throws Exception This method returns no values, but will raise an exception if there's a connection error
      */
-    public function connectSessionId($sessionId, $senderId, $senderPassword, $entityId = '') {
+    public function connectSessionId($sessionId, $senderId, $senderPassword, $entityId = null) {
 
-        $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER_2;
+        if ($entityId === null) {
+            // we are passing NO entity/location.  do not add locationid to the XML
+            $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER;
+        } else {
+            // we are passing entity/location ('' for top-level flip from entity).  add locationid to the XML
+            $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER_2;
+        }
+        
         $xml = str_replace("{1%}", $sessionId, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);

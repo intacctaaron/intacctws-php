@@ -331,13 +331,14 @@ class api_post {
 
             $row = array_map(array('api_post','prune_empty_element'),$array[$obj]);
             $rows = array_merge($rows,$row);
-            $pagesize = $call['pagesize'] ?? 100; 
+//            $pagesize = $call['pagesize'] ?? 100; 
             $num_remaining = $array['@attributes']['numremaining']; 
             $phpObj['function']['query']['offset'] += $phpObj['function']['query']['pagesize'] ; 
 
             if ($limit !== null && $phpObj['function']['query']['offset'] >= $limit) {
                 $num_remaining = 0;
             }
+            dbg("   **NUM REMAINING**:  " . $num_remaining);
 
         } while ($num_remaining > 0);
 
@@ -612,7 +613,7 @@ class api_post {
                         throw new Exception("Invalid return format: " . $returnFormat);
                     break;
                 }
-                dbg("READMORE GOT: $thiscount");
+                dbg("READMORE GOT: $thiscount, Total now: $totalcount");
 
             }
             catch (Exception $ex) {
@@ -1148,13 +1149,16 @@ class api_post {
             try {
                 api_post::validateResponse($res, $xml);
                 break;
-            }
-            catch (Exception $ex) {
+            } catch (Exception $ex) {
+                if ($count >= 5) {
+                    throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
+                }
                 if (strpos($ex->getMessage(), "too many operations") !== false) {
                     $count++;
-                    if ($count >= 5) {
-                        throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
-                    }
+                } else if (strpos($ex->getMessage(), "UJPP0007") !== false) {
+                    $count++;
+                    dbg("Got UJPP007. Sleeping one minute and trying again.");
+                    sleep(60);
                 } else {
                     throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                 }
