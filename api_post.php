@@ -1154,14 +1154,20 @@ class api_post {
                 api_post::validateResponse($res, $xml);
                 break;
             } catch (Exception $ex) {
+                dbg("JPC EXCEPTION");
                 if ($count >= 5) {
                     throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                 }
+                dbg("EX getMessage");
+                dbg($ex->getMessage());
                 if (strpos($ex->getMessage(), "too many operations") !== false) {
                     $count++;
                 } else if (strpos($ex->getMessage(), "UJPP0007") !== false) {
                     $count++;
                     dbg("Got UJPP007. Sleeping one minute and trying again.");
+                    dbg("RESPONSE HEADER:");
+                    dbg(self::$lastResponseHeader);
+                    dbg("END RESPONSE HEADER:");
                     sleep(60);
                 } else {
                     throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
@@ -1212,13 +1218,18 @@ class api_post {
         $response_header = substr($response, 0, $header_size);
         $response_body = substr($response, $header_size);
 
+        self::$lastResponse = $response_body; 
+        self::$lastResponseHeader = $response_header; 
+        if (strpos($response,"UJPP00") !== FALSE) {
+            dbg("FULL RESPONSE with header");
+            dbg($response);
+        }
+
         if ($error != "") {
             throw new exception($error);
         }
         curl_close( $ch );
 
-        self::$lastResponse = $response_body; 
-        self::$lastResponseHeader = $response_header; 
         return $response_body;
 
     }
