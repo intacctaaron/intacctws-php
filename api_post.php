@@ -317,6 +317,7 @@ class api_post {
         do {
             $xml = api_util::phpToXml('content',array($phpObj));
             $res = api_post::post($xml, $session,'3.0', true);
+            //dbg($res);
             $res_xml = simplexml_load_string($res);
             $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
             $array = json_decode($json,TRUE);
@@ -329,9 +330,12 @@ class api_post {
             }
 
             $row = array_map(array('api_post','prune_empty_element'),$array[$obj]);
+            //dbg("READ this many rows" . count($row));
             $rows = array_merge($rows,$row);
+            //dbg("Total read is " . count($rows));
             $pagesize = $call['pagesize'] ?? 100; 
             $num_remaining = $array['@attributes']['numremaining']; 
+            dbg("REMAINING: $num_remaining.  OFFSET is now : " . $phpObj['function']['query']['pagesize']);
             $phpObj['function']['query']['offset'] += $phpObj['function']['query']['pagesize'] ; 
 
             if ($limit !== null && $phpObj['function']['query']['offset'] >= $limit) {
@@ -571,6 +575,10 @@ class api_post {
             // csv with no records will have no response, so avoid the error from validate and just return
             return '';
         }
+        if ($object == 'PROJECT') {
+            dbg(api_post::getLastRequest());
+            dbg($response);
+        }
         api_post::validateReadResults($response);
 
 
@@ -586,8 +594,11 @@ class api_post {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
                 $response = api_post::post($readXml, $session);
-                //dbg($response);
-                //dbg(api_post::getLastRequest());
+                if ($object == 'PROJECT') {
+                    dbg("READMORE PROJECT");
+                    dbg(api_post::getLastRequest());
+                    dbg($response);
+                }
                 api_post::validateReadResults($response);
                 $page = self::processReadResults($response, $returnFormat, $pageCount);
                 $totalcount += $pageCount;
@@ -602,7 +613,7 @@ class api_post {
                     case api_returnFormat::CSV:
                         $page = explode("\n", $page);
                         array_shift($page);
-                        $csv .= implode($page, "\n");
+                        $csv .= implode("\n",$page);
                     break;
                     case api_returnFormat::XML:
                         $xml .= $page;
@@ -657,10 +668,10 @@ class api_post {
         $readXml = "<query><object>$object</object><filter>$query_xml</filter><select>$field_xml</select>";
         $readXml .= "<pagesize>$pageSize</pagesize>";
         $readXml .= "</query>";
-        dbg($readXml);
+        //dbg($readXml);
 
         $response = api_post::post($readXml,$session);
-        dbg($response);
+        //dbg($response);
         die();
         if ($returnFormatArg == api_returnFormat::CSV && trim($response) == "") {
             // csv with no records will have no response, so avoid the error from validate and just return
@@ -1370,7 +1381,7 @@ class api_post {
      * @throws Exception
      * @return Mixed string or object depending on return format
      */
-    public static function processListResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+    public static function processListResults($response, $returnFormat, &$count) {
         //dbg($response);
 
         $xml = simplexml_load_string($response);
@@ -1441,7 +1452,7 @@ class api_post {
      * @throws Exception
      * @return Mixed string or object depending on return format
      */
-    private static function processReadResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+    private static function processReadResults($response, $returnFormat, &$count) {
         $objAry = array(); $csv = ''; $json = ''; $xml = '';
         if ($returnFormat == api_returnFormat::PHPOBJ) {
             $objAry = api_util::csvToPhp($response);
