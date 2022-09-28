@@ -9,6 +9,7 @@ class api_post {
 
     private static $lastRequest;
     private static $lastResponse;
+    private static $lastResponseHeader;
     private static $dryRun;
 
     const DEFAULT_PAGESIZE = 1000;
@@ -86,7 +87,7 @@ class api_post {
      * @throws Exception
      * @return Array array of keys to the objects created
      */
-    public static function create($records, api_session $session) {
+    public static function create($records, api_session $session,$policy=null) {
 
         if (count($records) > 100) throw new Exception("Attempting to create more than 100 records. (" . count($records) . ") ");
 
@@ -100,9 +101,11 @@ class api_post {
             $createXml = $createXml . $objXml;
         }
         $createXml = $createXml . "</create>";
-        $res = api_post::post($createXml, $session);
+        $res = api_post::post($createXml, $session, "3.0", false, $policy);
+        if ($policy !== null) {
+            return $res;
+        }
         $records = api_post::processUpdateResults($res, $node);
-
         return $records;
     }
 
@@ -332,8 +335,6 @@ class api_post {
             $row = array_map(array('api_post','prune_empty_element'),$array[$obj]);
             //dbg("READ this many rows" . count($row));
             $rows = array_merge($rows,$row);
-            //dbg("Total read is " . count($rows));
-            $pagesize = $call['pagesize'] ?? 100; 
             $num_remaining = $array['@attributes']['numremaining']; 
             dbg("REMAINING: $num_remaining.  OFFSET is now : " . $phpObj['function']['query']['pagesize']);
             $phpObj['function']['query']['offset'] += $phpObj['function']['query']['pagesize'] ; 
@@ -341,6 +342,7 @@ class api_post {
             if ($limit !== null && $phpObj['function']['query']['offset'] >= $limit) {
                 $num_remaining = 0;
             }
+            dbg("   **NUM REMAINING**:  " . $num_remaining);
 
         } while ($num_remaining > 0);
 
@@ -622,7 +624,7 @@ class api_post {
                         throw new Exception("Invalid return format: " . $returnFormat);
                     break;
                 }
-                dbg("READMORE GOT: $thiscount");
+                dbg("READMORE GOT: $thiscount, Total now: $totalcount");
 
             }
             catch (Exception $ex) {
@@ -701,8 +703,7 @@ class api_post {
 
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
-        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
-            dbg("READMORE: " . ++$count);
+        while($thiscount == $pageSize && $totalcount < $maxRecords) {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
                 $response = api_post::post($readXml, $session);
@@ -784,7 +785,7 @@ class api_post {
 
         // we have no idea if there are more if CSV is returned, so just check
         // if the last count returned was  $pageSize
-        while($thiscount == $pageSize && $totalcount <= $maxRecords) {
+        while($thiscount == $pageSize && $totalcount < $maxRecords) {
             $readXml = "<readMore><object>$object</object></readMore>";
             try {
                 $response = api_post::post($readXml, $session);
@@ -1065,7 +1066,7 @@ class api_post {
      * @throws Exception
      * @return String the XML response document
      */
-    private static function post($xml, api_session $session, $dtdVersion="3.0",$multiFunc=false) {
+    private static function post($xml, api_session $session, $dtdVersion="3.0",$multiFunc=false, $policy=null) {
 
         $sessionId = $session->sessionId;
         $endPoint = $session->endPoint;
@@ -1113,10 +1114,13 @@ class api_post {
     <control>
         <senderid>{$senderId}</senderid>
         <password>{$senderPassword}</password>
-        <controlid>foobar</controlid>
+        <controlid>".uniqid()."</controlid>
         <uniqueid>false</uniqueid>
-        <dtdversion>{$dtdVersion}</dtdversion>
-    </control>
+        <dtdversion>{$dtdVersion}</dtdversion>";
+        if ($policy !== null) {
+            $templateHead .= "<policyid>$policy</policyid>";
+        }
+    $templateHead .= "</control>
     <operation transaction='{$transaction}'>
         <authentication>
             <sessionid>{$sessionId}</sessionid>
@@ -1158,13 +1162,22 @@ class api_post {
             try {
                 api_post::validateResponse($res, $xml);
                 break;
-            }
-            catch (Exception $ex) {
+            } catch (Exception $ex) {
+                dbg("JPC EXCEPTION");
+                if ($count >= 5) {
+                    throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
+                }
+                dbg("EX getMessage");
+                dbg($ex->getMessage());
                 if (strpos($ex->getMessage(), "too many operations") !== false) {
                     $count++;
-                    if ($count >= 5) {
-                        throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
-                    }
+                } else if (strpos($ex->getMessage(), "UJPP0007") !== false) {
+                    $count++;
+                    dbg("Got UJPP007. Sleeping one minute and trying again.");
+                    dbg("RESPONSE HEADER:");
+                    dbg(self::$lastResponseHeader);
+                    dbg("END RESPONSE HEADER:");
+                    sleep(60);
                 } else {
                     throw new Exception($ex->getMessage(),$ex->getCode(),$ex);
                 }
@@ -1188,27 +1201,45 @@ class api_post {
 
         $ch = curl_init();
         curl_setopt( $ch, CURLOPT_URL, $endPoint );
-        curl_setopt( $ch, CURLOPT_HEADER, 0 );
+        curl_setopt( $ch, CURLOPT_HEADER, true );
+        curl_setopt( $ch, CURLINFO_HEADER_OUT, true );
         curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1 );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
         curl_setopt( $ch, CURLOPT_TIMEOUT, 6000 ); //Seconds until timeout
         curl_setopt( $ch, CURLOPT_POST, 1 );
-        curl_setopt( $ch, CURLOPT_VERBOSE, false );
+        curl_setopt( $ch, CURLOPT_VERBOSE, 0);
         // TODO: Research and correct the problem with CURLOPT_SSL_VERIFYPEER
         curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false); // yahoo doesn't like the api.intacct.com CA
 
         $body = "xmlrequest=" . urlencode( $body );
-        curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
 
+        curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
         $response = curl_exec( $ch );
         $error = curl_error($ch);
+
+        //$info = curl_getinfo( $ch, CURLINFO_HEADER_OUT );
+        //$info = curl_getinfo( $ch );
+        
+        //dbg($response);
+        //
+        // Then, after your curl_exec call:
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $response_header = substr($response, 0, $header_size);
+        $response_body = substr($response, $header_size);
+
+        self::$lastResponse = $response_body; 
+        self::$lastResponseHeader = $response_header; 
+        if (strpos($response,"UJPP00") !== FALSE) {
+            dbg("FULL RESPONSE with header");
+            dbg($response);
+        }
+
         if ($error != "") {
             throw new exception($error);
         }
         curl_close( $ch );
 
-        self::$lastResponse = $response;
-        return $response;
+        return $response_body;
 
     }
 
@@ -1502,6 +1533,10 @@ class api_post {
      */
     public static function getLastResponse() {
       return self::$lastResponse;
+    }
+
+    public static function getLastResponseHeader() {
+      return self::$lastResponseHeader;
     }
 
     public static function setDryRun($tf=true)

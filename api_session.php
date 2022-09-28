@@ -47,6 +47,7 @@ class api_session {
     const XML_SESSIONID = "<sessionid>{1%}</sessionid>";
 
     const DEFAULT_LOGIN_URL = "https://api.intacct.com/ia/xml/xmlgw.phtml";
+    const PRV_LOGIN_URL = "https://preview.intacct.com/ia/xml/xmlgw.phtml";
 
     public function __toString() {
         $temp = array (
@@ -112,7 +113,8 @@ class api_session {
 
         $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword, $entityType, $entityId);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = strpos($companyId,"-prv") === FALSE ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
@@ -143,7 +145,8 @@ class api_session {
 
         $xml = $this->buildHeaderXML($companyId, $userId, $password, $senderId, $senderPassword,$entityType, $entityId);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = strpos($companyId,"-prv") === FALSE ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
@@ -167,15 +170,23 @@ class api_session {
      * @param String $senderPassword Your Intacct partner password
      * @throws Exception This method returns no values, but will raise an exception if there's a connection error
      */
-    public function connectSessionId($sessionId, $senderId, $senderPassword, $entityId = '') {
+    public function connectSessionId($sessionId, $senderId, $senderPassword, $entityId = null) {
 
-        $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER_2;
+        if ($entityId === null) {
+            // we are passing NO entity/location.  do not add locationid to the XML
+            $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER;
+        } else {
+            // we are passing entity/location ('' for top-level flip from entity).  add locationid to the XML
+            $xml = self::XML_HEADER . self::XML_SESSIONID . self::XML_FOOTER_2;
+        }
+        
         $xml = str_replace("{1%}", $sessionId, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
         $xml = str_replace("{6%}", $entityId, $xml);
 
-        $response = api_post::execute($xml, self::DEFAULT_LOGIN_URL);
+        $endpoint = ($this->companyId === null || strpos($this->companyId,"-prv") === FALSE) ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
+        $response = api_post::execute($xml, $endpoint);
 
         self::validateConnection($response);
 
