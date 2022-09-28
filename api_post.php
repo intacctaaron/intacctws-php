@@ -525,7 +525,7 @@ class api_post {
                         // append all but the first row to the CSV file
                         $page = explode("\n", $page);
                         array_shift($page);
-                        $csv .= implode($page, "\n");
+                        $csv .= implode("\n",$page);
                     }
                     elseif ($returnFormat == api_returnFormat::XML) {
                         // just add the xml string
