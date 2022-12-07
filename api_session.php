@@ -183,7 +183,9 @@ class api_session {
         $xml = str_replace("{1%}", $sessionId, $xml);
         $xml = str_replace("{4%}", $senderId, $xml);
         $xml = str_replace("{5%}", $senderPassword, $xml);
-        $xml = str_replace("{6%}", $entityId, $xml);
+        if ($entityId !== null) {
+            $xml = str_replace("{6%}", $entityId, $xml);
+        }
 
         $endpoint = ($this->companyId === null || strpos($this->companyId,"-prv") === FALSE) ? self::DEFAULT_LOGIN_URL : self::PRV_LOGIN_URL;
         $response = api_post::execute($xml, $endpoint);

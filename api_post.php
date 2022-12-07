@@ -249,6 +249,11 @@ class api_post {
         return api_post::post("<content>$xml</content>", $session,"3.0",true);
     }
 
+    public static function get_xml($obj) {
+        $xml = api_util::phpToXml('content',array($obj));
+        return $xml;
+    }
+
     /**
      * Run any Intacct API method not directly implemented in this class.  You must pass
      * valid XML for the method you wish to invoke.
@@ -270,9 +275,9 @@ class api_post {
      * @param string $dtdVersion DTD Version.  Either "2.1" or "3.0".  Defaults to "2.1"
      * @return String the XML response from Intacct
      */
-    public static function sendFunctions($phpObj, api_session $session, $dtdVersion="3.0", $returnFormat = api_returnFormat::XML) {
+    public static function sendFunctions($phpObj, api_session $session, $dtdVersion="3.0", $returnFormat = api_returnFormat::XML,$policy = null) {
         $xml = api_util::phpToXml('content',array($phpObj));
-        $res = api_post::post($xml, $session,$dtdVersion, true);
+        $res = api_post::post($xml, $session,$dtdVersion, true, $policy);
         if ($returnFormat == api_returnFormat::PHPOBJ) {
             $res_xml = simplexml_load_string($res);
             $json = json_encode($res_xml->operation->result->data,JSON_FORCE_OBJECT);
@@ -336,6 +341,9 @@ class api_post {
             //dbg("READ this many rows" . count($row));
             $rows = array_merge($rows,$row);
             $num_remaining = $array['@attributes']['numremaining']; 
+            if ($limit !== null) {
+                $num_remaining = $limit - count($rows);
+            }
             dbg("REMAINING: $num_remaining.  OFFSET is now : " . $phpObj['function']['query']['pagesize']);
             $phpObj['function']['query']['offset'] += $phpObj['function']['query']['pagesize'] ; 
 
@@ -1452,6 +1460,9 @@ class api_post {
                     }
                 }
             }
+        }
+        if (isset($array['dimensions'])) {
+            $array['dimensions'] = $array['dimensions'][0]['dimension'];
         }
         if (isset($array['arpayment'])) {
             foreach ($array['arpayment'] as $key => $txn) {
