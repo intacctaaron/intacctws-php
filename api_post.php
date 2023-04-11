@@ -228,9 +228,9 @@ class api_post {
      * objects and 'recordno' values for standard objects
      * @param api_session $session instance of api_session object
      */
-    public static function delete($object, $ids, api_session $session) {
+    public static function delete($object, $ids, api_session $session,$policy=null) {
         $deleteXml = "<delete><object>$object</object><keys>$ids</keys></delete>";
-        api_post::post($deleteXml, $session);
+        api_post::post($deleteXml, $session,"3.0",false,$policy);
     }
 
     /**
@@ -341,11 +341,13 @@ class api_post {
             //dbg("READ this many rows" . count($row));
             $rows = array_merge($rows,$row);
             $num_remaining = $array['@attributes']['numremaining']; 
-            if ($limit !== null) {
-                $num_remaining = $limit - count($rows);
+            $total = count($rows);
+            if ($num_remaining > 0 && $limit !== null) { 
+                $num_remaining = min($limit - $total,$num_remaining);
             }
-            dbg("REMAINING: $num_remaining.  OFFSET is now : " . $phpObj['function']['query']['pagesize']);
+
             $phpObj['function']['query']['offset'] += $phpObj['function']['query']['pagesize'] ; 
+            dbg("REMAINING: $num_remaining.  OFFSET is now : " . $phpObj['function']['query']['offset']);
 
             if ($limit !== null && $phpObj['function']['query']['offset'] >= $limit) {
                 $num_remaining = 0;
