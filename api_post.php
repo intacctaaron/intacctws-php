@@ -9,7 +9,9 @@ class api_post {
 
     private static $lastRequest;
     private static $lastResponse;
+    private static $lastResponseHeader;
     private static $dryRun;
+    private static $sage_appid;
 
     const DEFAULT_PAGESIZE = 1000;
     const DEFAULT_MAXRETURN = 200000;
@@ -1096,10 +1098,17 @@ class api_post {
 
         */
 
-        $templateHead =
-"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+
+        // if self::$sage_appid is not empty we want to pass <appid> above senderid.
+
+        $templateHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <request>
-    <control>
+    <control>";
+if (!empty(self::$sage_appid)) {
+        $templateHead .= "
+        <appid>" . self::$sage_appid . "</appid>";
+}
+$templateHead .= "
         <senderid>{$senderId}</senderid>
         <password>{$senderPassword}</password>
         <controlid>foobar</controlid>
@@ -1142,6 +1151,17 @@ class api_post {
         $res = "";
         while (true) {
             $res = api_post::execute($xml, $endPoint);
+            if ( strpos($res, "520 Origin") !== FALSE || strpos($res, "502 Bad Gateway") !== FALSE) {
+                $count++;
+                if ($count <= 5) {
+                    dbg("RETRYING due to 520 or 502 error");
+                    dbg("===REQUEST==============================");
+                    dbg(api_post::getLastRequest());
+                    dbg("===RESPONSE==============================");
+                    dbg($res);
+                    continue;
+                }
+            }
 
             // If we didn't get a response, we had a poorly constructed XML request.
             try {
@@ -1177,7 +1197,8 @@ class api_post {
 
         $ch = curl_init();
         curl_setopt( $ch, CURLOPT_URL, $endPoint );
-        curl_setopt( $ch, CURLOPT_HEADER, 0 );
+        curl_setopt( $ch, CURLOPT_HEADER, true );
+        curl_setopt( $ch, CURLINFO_HEADER_OUT, true );
         curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1 );
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
         curl_setopt( $ch, CURLOPT_TIMEOUT, 6000 ); //Seconds until timeout
@@ -1191,13 +1212,36 @@ class api_post {
 
         $response = curl_exec( $ch );
         $error = curl_error($ch);
+        $code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $response_header = substr($response, 0, $header_size);
+        $response_body = substr($response, $header_size);
+        self::$lastResponse = $response_body; 
+        self::$lastResponseHeader = $response_header; 
+
+        if ($code != "200" || strpos($response,"UJPP00") !== FALSE || 
+            strpos($error,"transfer closed") !== FALSE || 
+            strpos($response,"cloudflare-nginx") !== FALSE || 
+            strpos($error,"cloudflare-nginx") !== FALSE || 
+            strpos($response,"<html>") !== FALSE) {
+
+            dbg("SAGE ERROR FULL RESPONSE with header");
+            dbg($response);
+            dbg("RESPONSE BODY");
+            dbg($response_body);
+            dbg("SAGE ERROR REQUEST WAS");
+            dbg("SAGE ERROR " . self::$lastRequest);
+        }
+
         if ($error != "") {
+            dbg("FULL RESPONSE with header");
+            dbg($response);
             throw new exception($error);
         }
         curl_close( $ch );
 
-        self::$lastResponse = $response;
-        return $response;
+        return $response_body;
 
     }
 
@@ -1370,7 +1414,7 @@ class api_post {
      * @throws Exception
      * @return Mixed string or object depending on return format
      */
-    public static function processListResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+    public static function processListResults($response, $returnFormat, &$count) {
         //dbg($response);
 
         $xml = simplexml_load_string($response);
@@ -1441,7 +1485,7 @@ class api_post {
      * @throws Exception
      * @return Mixed string or object depending on return format
      */
-    private static function processReadResults($response, $returnFormat = api_returnFormat::PHPOBJ, &$count) {
+    private static function processReadResults($response, $returnFormat, &$count) {
         $objAry = array(); $csv = ''; $json = ''; $xml = '';
         if ($returnFormat == api_returnFormat::PHPOBJ) {
             $objAry = api_util::csvToPhp($response);
@@ -1496,6 +1540,11 @@ class api_post {
     public static function setDryRun($tf=true)
     {
         self::$dryRun = $tf;
+    }
+
+    public static function setAppID($id)
+    {
+        self::$sage_appid = $id;
     }
 
 }
